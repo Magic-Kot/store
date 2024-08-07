@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"online-store/pkg/httpserver"
+	"time"
+)
 
 func main() {
-	fmt.Println("Hello world!")
+	serverDeps := &httpserver.ServerDeps{
+		Host:    "localhost",
+		Port:    ":8080",
+		Timeout: 5 * time.Second,
+	}
+
+	server := httpserver.NewServer(serverDeps)
+	server.Start()
 }
