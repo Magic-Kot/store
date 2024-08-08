@@ -5,14 +5,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/labstack/gommon/log"
-
 	"online-store/internal/controllers"
 	"online-store/internal/delivery/httpecho"
 	"online-store/internal/repository/postgres"
 	"online-store/internal/services/user"
 	"online-store/pkg/client/postg"
 	"online-store/pkg/httpserver"
+
+	"github.com/labstack/gommon/log"
 )
 
 func main() {
