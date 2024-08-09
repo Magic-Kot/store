@@ -2,17 +2,18 @@ package httpserver
 
 import (
 	"net/http"
+	"online-store/internal/config"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-type ServerDeps struct {
-	Host    string
-	Port    string
-	Timeout time.Duration
-}
+//type ServerDeps struct {
+//	Host    string        `yaml:"host" env:"HOST" env-default:"localhost"`
+//	Port    string        `yaml:"port" env:"PORT" env-default:":8000"`
+//	Timeout time.Duration `yaml:"timeout" env:"TIMEOUT" env-default:"5s"`
+//}
 
 type Server struct {
 	host    string
@@ -21,7 +22,8 @@ type Server struct {
 	serv    *echo.Echo
 }
 
-func NewServer(deps *ServerDeps) *Server {
+// func NewServer(deps *ServerDeps) *Server {
+func NewServer(deps *config.ServerDeps) *Server {
 	s := echo.New()
 	s.Use(middleware.Recover())
 

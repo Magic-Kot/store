@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"online-store/internal/config"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -18,23 +19,32 @@ type Client interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
+//type Config struct {
+//	MaxAttempts int    `yaml:"maxAttempts" env:"MAX_ATTEMPTS" env-default:"2"`
+//	Username    string `yaml:"username" env:"USERNAME" env-default:"postgres"`
+//	Password    string `yaml:"password" env:"PASSWORD" env-default:"postgres"`
+//	Host        string `yaml:"host" env:"HOST" env-default:"127.0.0.1"`
+//	Port        string `yaml:"port" env:"PORT" env-default:"5432"`
+//	Database    string `yaml:"database" env:"DATABASE" env-default:"postgres"`
+//}
+
 // NewClient создает клиента, подключаемый к базе данных по URL: postgres://postgres:12345@localhost:5438/postgres
-func NewClient(ctx context.Context, maxAttempts int, username, password, host, port, database string) (pool *pgxpool.Pool, err error) {
-	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", username, password, host, port, database)
+// func NewClient(ctx context.Context, config *Config) (pool *pgxpool.Pool, err error) {
+func NewClient(ctx context.Context, config *config.RepositoryConfig) (pool *pgxpool.Pool, err error) {
+	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", config.Username, config.Password, config.Host, config.Port, config.Database)
 	err = DoWithTries(func() error {
 		// With Timeout возвращает значение с указанием крайнего срока.
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
 		// Connect создает новый пул и немедленно устанавливает одно соединение. ctx можно использовать для отмены этого первоначального соединения.
-		//Информацию о формате connString смотрите в ParseConfig.
 		pool, err = pgxpool.Connect(ctx, dsn)
 		if err != nil {
 			return fmt.Errorf("connect function error: %w", err)
 		}
 
 		return nil
-	}, maxAttempts, 5*time.Second)
+	}, config.MaxAttempts, 5*time.Second)
 
 	if err != nil {
 		log.Fatal("error do with tries postg: %w", err)
@@ -43,11 +53,11 @@ func NewClient(ctx context.Context, maxAttempts int, username, password, host, p
 	return pool, nil
 }
 
-func DoWithTries(fn func() error, attemtps int, delay time.Duration) (err error) {
-	for attemtps > 0 {
+func DoWithTries(fn func() error, attempts int, delay time.Duration) (err error) {
+	for attempts > 0 {
 		if err = fn(); err != nil {
 			time.Sleep(delay)
-			attemtps--
+			attempts--
 
 			continue
 		}

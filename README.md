@@ -1,7 +1,7 @@
 # Online store project
 
-The server supports user interaction:
----
+## The server supports user interaction:
+
 
 1) Getting the user's login. Request Example:  
     `host:port/user/`  

@@ -44,6 +44,8 @@ func (r *UserRepository) GetUser(ctx context.Context, login string) (int, error)
 	return id, nil
 }
 
+// GetAllUser - получение login всех пользователей
+
 // CreateUser - создание нового пользователя
 func (r *UserRepository) CreateUser(ctx context.Context, login string, password string) (string, error) {
 	fmt.Println("обращение к Postgres CreateUser")
