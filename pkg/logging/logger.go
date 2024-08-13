@@ -1,24 +1,24 @@
 package logging
 
 import (
-	"context"
+	"github.com/pkg/errors"
 	"os"
 
 	"github.com/rs/zerolog"
 )
 
-type Logger struct {
+type LoggerDeps struct {
 	LogLevel string
 }
 
-func NewLogger(ctx context.Context) (context.Context, error) {
-	//zerolog.SetGlobalLevel(zerolog.TraceLevel)
+func NewLogger(cfg *LoggerDeps) (*zerolog.Logger, error) {
+	logLevel, err := zerolog.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse log level")
+	}
+	zerolog.SetGlobalLevel(logLevel)
 
-	logger := zerolog.New(os.Stdout)
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
-	ctx = logger.WithContext(ctx)
-
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	return ctx, nil
+	return &logger, nil
 }

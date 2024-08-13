@@ -2,68 +2,86 @@ package postg
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"log"
-	"online-store/internal/config"
-	"time"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/rs/zerolog"
 )
 
 type Client interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
-	Begin(ctx context.Context) (pgx.Tx, error)
+	// Exec - выполняет запрос, не возвращая никаких строк. Аргументы предназначены для любых параметров-заполнителей в запросе.
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	// Query - выполняет запрос, который возвращает строки, обычно SELECT. Аргументы предназначены для любых параметров-заполнителей в запросе.
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	// QueryRowx - QueryRowContext выполняет запрос, который, как ожидается, вернет не более одной строки. всегда возвращает ненулевое значение.
+	//Ошибки откладываются до тех пор, пока не будет вызван метод проверки [Row].
+	// Если запрос не выберет ни одной строки, [*Row.Scan] вернет [ErrNoRows]. В противном случае [*Row.Scan] сканирует первую выбранную строку и отбрасывает остальные.
+	QueryRowx(query string, args ...interface{}) *sqlx.Row
 }
 
-//type Config struct {
-//	MaxAttempts int    `yaml:"maxAttempts" env:"MAX_ATTEMPTS" env-default:"2"`
-//	Username    string `yaml:"username" env:"USERNAME" env-default:"postgres"`
-//	Password    string `yaml:"password" env:"PASSWORD" env-default:"postgres"`
-//	Host        string `yaml:"host" env:"HOST" env-default:"127.0.0.1"`
-//	Port        string `yaml:"port" env:"PORT" env-default:"5432"`
-//	Database    string `yaml:"database" env:"DATABASE" env-default:"postgres"`
-//}
+type ConfigDeps struct {
+	MaxAttempts int
+	Username    string
+	Password    string
+	Host        string
+	Port        string
+	Database    string
+	SSLMode     string
+}
 
-// NewClient создает клиента, подключаемый к базе данных по URL: postgres://postgres:12345@localhost:5438/postgres
-// func NewClient(ctx context.Context, config *Config) (pool *pgxpool.Pool, err error) {
-func NewClient(ctx context.Context, config *config.RepositoryConfig) (pool *pgxpool.Pool, err error) {
-	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", config.Username, config.Password, config.Host, config.Port, config.Database)
-	err = DoWithTries(func() error {
-		// With Timeout возвращает значение с указанием крайнего срока.
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
+func NewClient(ctx context.Context, cfg *ConfigDeps) (*sqlx.DB, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("creating a Postgres client")
+	logger.Debug().Msgf("config: %+v", cfg)
 
-		// Connect создает новый пул и немедленно устанавливает одно соединение. ctx можно использовать для отмены этого первоначального соединения.
-		pool, err = pgxpool.Connect(ctx, dsn)
-		if err != nil {
-			return fmt.Errorf("connect function error: %w", err)
-		}
-
-		return nil
-	}, config.MaxAttempts, 5*time.Second)
-
+	db, err := sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+		cfg.Host, cfg.Port, cfg.Username, cfg.Database, cfg.Password, cfg.SSLMode))
 	if err != nil {
-		log.Fatal("error do with tries postg: %w", err)
+		logger.Error().Msg(fmt.Sprint("errOpen:error connecting to Postgres:", err))
+		return nil, err
 	}
 
-	return pool, nil
-}
-
-func DoWithTries(fn func() error, attempts int, delay time.Duration) (err error) {
-	for attempts > 0 {
-		if err = fn(); err != nil {
-			time.Sleep(delay)
-			attempts--
-
-			continue
-		}
-
-		return nil
+	err = db.Ping()
+	if err != nil {
+		logger.Error().Msg(fmt.Sprint("errPing: error connecting to Postgres:", err))
+		return nil, err
 	}
 
-	return
+	return db, nil
+
+	//delay := 5 * time.Second
+	//attempts := cfg.MaxAttempts
+
+	//for attempts > 0 {
+	//	if db, err = Connection(cfg, attempts, delay); err != nil {
+	//		time.Sleep(delay)
+	//		attempts--
+	//
+	//		continue
+	//	}
+	//}
+	//
+	//if err != nil {
+	//	logger.Info().Msg(fmt.Sprint("error connecting to Postgres:", err))
+	//	return nil, err
+	//}
+	//
+	//err = db.Ping()
+	//if err != nil {
+	//	logger.Info().Msg(fmt.Sprint("error connecting to Postgres:", err))
+	//	return nil, err
+	//}
+	//
+	//logger.Info().Msg("successful connection to Postgres")
+	//
+	//return db, err
 }
+
+//func Connection(cfg *ConfigDeps, attempts int, delay time.Duration) (db *sqlx.DB, err error) {
+//	db, err = sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+//		cfg.Host, cfg.Port, cfg.Username, cfg.Database, cfg.Password, cfg.SSLMode))
+//
+//	return db, err
+//}

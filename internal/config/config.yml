@@ -10,3 +10,7 @@ repository:
     host: "127.0.0.1"
     port: "5438"
     database: "postgres"
+    SSLMode: "disable"
+
+logger:
+    logLevel: "debug"

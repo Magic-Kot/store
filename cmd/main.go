@@ -2,66 +2,78 @@ package main
 
 import (
 	"context"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"online-store/internal/config"
-	"online-store/pkg/logging"
+	"fmt"
 	"os"
 
+	"github.com/Magic-Kot/store/internal/config"
+	"github.com/Magic-Kot/store/internal/controllers"
+	"github.com/Magic-Kot/store/internal/delivery/httpecho"
+	"github.com/Magic-Kot/store/internal/repository/postgres"
+	"github.com/Magic-Kot/store/internal/services/user"
+	"github.com/Magic-Kot/store/pkg/client/postg"
+	"github.com/Magic-Kot/store/pkg/httpserver"
+	"github.com/Magic-Kot/store/pkg/logging"
+
+	"github.com/go-playground/validator/v10"
 	"github.com/ilyakaznacheev/cleanenv"
-	"online-store/internal/controllers"
-	"online-store/internal/delivery/httpecho"
-	"online-store/internal/repository/postgres"
-	"online-store/internal/services/user"
-	"online-store/pkg/client/postg"
-	"online-store/pkg/httpserver"
+	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	// create logger
-	ctx := context.Background()
-
-	ctx, err := logging.NewLogger(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to init logger")
-		os.Exit(1)
-	}
-
-	logger := zerolog.Ctx(ctx)
-
-	logger.Info().Msg("Start server")
-	log.Error().Err(err).Msg("failed to init logger")
-
-	log.Debug().Msg("log level set to Debug")
-	log.Info().Msg("log level set to Info")
-
 	// read config
 	//var cfg httpserver.ServerDeps
 	var cfg config.Config
 
-	err = cleanenv.ReadConfig("../config.yml", &cfg) //задан путь до файла конфигурации
+	err := cleanenv.ReadConfig("../internal/config/config.yml", &cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("error initializing config")
 		os.Exit(1)
 	}
 
+	// create logger
+	logCfg := logging.LoggerDeps{
+		LogLevel: cfg.LoggerDeps.LogLevel,
+	}
+
+	logger, err := logging.NewLogger(&logCfg)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to init logger")
+		os.Exit(1)
+	}
+
+	logger.Info().Msg("init logger")
+
+	ctx := context.Background()
+	ctx = logger.WithContext(ctx)
+
+	logger.Debug().Msgf("config: %+v", cfg)
+
 	// create server
-	server := httpserver.NewServer(&cfg.ServerDeps)
+	serv := httpserver.ConfigDeps{
+		Host:    cfg.ServerDeps.Host,
+		Port:    cfg.ServerDeps.Port,
+		Timeout: cfg.ServerDeps.Timeout,
+		//Logger:  logger,
+	}
+
+	server := httpserver.NewServer(&serv)
 
 	// create client
-	//cfgRepo := postg.Config{
-	//	MaxAttempts: 3,
-	//	Username:    "postgres",
-	//	Password:    "12345",
-	//	Host:        "localhost",
-	//	Port:        "5438",
-	//	Database:    "postgres",
-	//}
+	repo := postg.ConfigDeps{
+		MaxAttempts: cfg.PostgresDeps.MaxAttempts,
+		Username:    cfg.PostgresDeps.Username,
+		Password:    cfg.PostgresDeps.Password,
+		Host:        cfg.PostgresDeps.Host,
+		Port:        cfg.PostgresDeps.Port,
+		Database:    cfg.PostgresDeps.Database,
+		SSLMode:     cfg.PostgresDeps.SSLMode,
+	}
 
-	pool, err := postg.NewClient(context.TODO(), &cfg.RepositoryConfig)
+	pool, err := postg.NewClient(ctx, &repo)
 	if err != nil {
-		//log.Error("failed to init storage:", err)
-		os.Exit(1)
+		logger.Fatal().Msg(fmt.Sprint("NewClient:", err))
+		//os.Exit(1)
 	}
 
 	// create repository
@@ -70,14 +82,19 @@ func main() {
 	// create service
 	service := user.NewUserService(db)
 
+	// create validator
+	validate := validator.New()
+
 	// create controller
-	contr := controllers.NewApiController(service)
+	contr := controllers.NewApiController(service, logger, validate)
 
 	// set routes
 	httpecho.SetUserRoutes(server.Server(), contr)
 
 	// start server
+	logger.Info().Msg("starting server")
+
 	if err := server.Start(); err != nil {
-		panic(err)
+		logger.Fatal().Msg(fmt.Sprint("serverStart:", err))
 	}
 }
