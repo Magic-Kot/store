@@ -2,17 +2,19 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/Magic-Kot/store/internal/models"
 	"github.com/Magic-Kot/store/pkg/utils/hash"
+	"github.com/Magic-Kot/store/pkg/utils/jwtToken"
 )
 
 type UserRepository interface {
-	GetUser(ctx context.Context, id int) (string, string, error)
+	GetUser(ctx context.Context, user *models.User) (*models.User, error)
 	CreateUser(ctx context.Context, login string, passwordHash string) (int, error)
-	AuthorizationUser(ctx context.Context, login string) (string, error)
+	SignIn(ctx context.Context, user *models.UserAuthorization) (*models.UserAuthorization, error)
 	UpdateUser(ctx context.Context, value string, arg []interface{}) error
 	DeleteUser(ctx context.Context, id int) error
 }
@@ -29,20 +31,17 @@ func NewUserService(userRepository UserRepository) *UserService {
 
 // GetUser - получение сущности пользователя по ID
 func (s *UserService) GetUser(ctx context.Context, user *models.User) (*models.User, error) {
-	login, email, err := s.UserRepository.GetUser(ctx, user.ID)
+	user, err := s.UserRepository.GetUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
-
-	user.Username = login
-	user.Email = email
 
 	return user, nil
 }
 
 // CreateUser - регистрация нового пользователя
 func (s *UserService) CreateUser(ctx context.Context, login string, password string) (int, error) {
-	passwordHash := hash.GeneratePasswordHash(password)
+	passwordHash := hash.GenerateHash(password)
 
 	id, err := s.UserRepository.CreateUser(ctx, login, passwordHash)
 	if err != nil {
@@ -52,21 +51,21 @@ func (s *UserService) CreateUser(ctx context.Context, login string, password str
 	return id, nil
 }
 
-// AuthorizationUser - авторизация пользователя
-func (s *UserService) AuthorizationUser(ctx context.Context, login string, password string) (int, error) {
-	passwordHash := hash.GeneratePasswordHash(password)
+// SignIn - индетификация, аутентификация пользователя, получение токена
+func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization) (string, error) {
+	passwordHash := hash.GenerateHash(user.Password)
 
-	passwordHashDB, err := s.UserRepository.AuthorizationUser(ctx, login)
+	user, err := s.UserRepository.SignIn(ctx, user)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
-	if passwordHash != passwordHashDB {
-		err = fmt.Errorf("invalid password")
-		return 0, err
+	if passwordHash != user.Password {
+		err = errors.New("invalid password")
+		return "", err
 	}
 
-	token := 0
+	token, err := jwtToken.GenerateToken(user.ID)
 
 	return token, nil
 }

@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users
 (
     id          SERIAL         PRIMARY KEY,
@@ -5,7 +7,6 @@ CREATE TABLE IF NOT EXISTS users
     password    VARCHAR        NOT NULL,
     email       VARCHAR        DEFAULT('')
 );
---CREATE INDEX IF NOT EXISTS idx_login ON users(login);
 
 CREATE TABLE IF NOT EXISTS cart
 (
@@ -34,3 +35,13 @@ CREATE TABLE IF NOT EXISTS cart_products
     cart_id     INTEGER references cart (id) on delete cascade    NOT NULL,
     product_id     INTEGER references products (id) on delete cascade    NOT NULL
 );
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS cart;
+DROP TABLE IF EXISTS users_cart;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS cart_products;
+-- +goose StatementEnd

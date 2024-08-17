@@ -3,10 +3,11 @@ package controllers
 import (
 	"fmt"
 	"net/http"
-	"strconv"
+	"strings"
 
 	"github.com/Magic-Kot/store/internal/models"
 	"github.com/Magic-Kot/store/internal/services/user"
+	"github.com/Magic-Kot/store/pkg/utils/jwtToken"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -30,11 +31,13 @@ func NewApiController(userService *user.UserService, logger *zerolog.Logger, val
 // GetUser - получение сущности пользователя по ID
 func (ac *ApiController) GetUser(c echo.Context) error {
 	req := new(models.User)
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusNotFound, fmt.Sprintf("invalid id: %d", id))
+	id := c.Get("userId")
+	userID, ok := id.(int)
+	if ok != true {
+		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
 	}
-	req.ID = id
+
+	req.ID = userID
 
 	result, err := ac.UserService.GetUser(c.Request().Context(), req)
 	if err != nil {
@@ -83,17 +86,18 @@ func (ac *ApiController) CreateUser(c echo.Context) error {
 
 	id, err := ac.UserService.CreateUser(c.Request().Context(), req.Username, req.Password)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, err.Error())
+		// нет обработки ошибки на уникальность логина
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, fmt.Sprintf("successfully created user, id: %d", id))
 }
 
-// AuthorizationUser - авторизация пользователя
-func (ac *ApiController) AuthorizationUser(c echo.Context) error {
+// SignIn - индетификация, аутентификация пользователя, парсинг Username, Password
+func (ac *ApiController) SignIn(c echo.Context) error {
 	req := new(models.UserAuthorization)
 	if err := c.Bind(req); err != nil {
-		ac.logger.Warn().Msgf("bind: invalid request: %v", err)
+		ac.logger.Debug().Msgf("bind: invalid request: %v", err)
 
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid request"))
 	}
@@ -126,12 +130,49 @@ func (ac *ApiController) AuthorizationUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	token, err := ac.UserService.AuthorizationUser(c.Request().Context(), req.Username, req.Password)
+	token, err := ac.UserService.SignIn(c.Request().Context(), req)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, err.Error())
+		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, fmt.Sprintf("successful authorization, token: %d", token))
+	return c.JSON(http.StatusOK, fmt.Sprintf("successful authorization, jwtToken: %s", token))
+}
+
+// AuthorizationUser - авторизация пользователя, парсинг токена
+func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		header := c.Request().Header.Get("Authorization")
+		if header == "" {
+			ac.logger.Debug().Msgf("header 'Authorization': invalid request: %v", header)
+
+			return c.JSON(http.StatusUnauthorized, fmt.Sprint("empty auth header"))
+		}
+
+		headerParts := strings.Split(header, " ")
+
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			ac.logger.Debug().Msgf("header 'Authorization': invalid request: %v", header)
+
+			return c.JSON(http.StatusUnauthorized, fmt.Sprint("invalid auth header"))
+		}
+
+		userId, err := jwtToken.ParseToken(headerParts[1])
+		if err != nil {
+			ac.logger.Debug().Msgf("parseToken: %v", err)
+
+			return c.JSON(http.StatusUnauthorized, err.Error())
+		}
+
+		c.Set("userId", userId)
+		err = next(c)
+		if err != nil {
+			ac.logger.Warn().Msgf("next HandlerFunc: %v", err)
+
+			return c.JSON(http.StatusBadRequest, err.Error())
+		}
+
+		return nil
+	}
 }
 
 // UpdateUser - обновление данных пользователя по ID
@@ -143,15 +184,17 @@ func (ac *ApiController) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid request"))
 	}
 
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		ac.logger.Debug().Msgf("deleteUser: invalid id: %d, err: %v", id, err)
+	id := c.Get("userId")
+	userID, ok := id.(int)
+	if ok != true {
+		ac.logger.Debug().Msgf("UpdateUser: invalid id: %d", id)
 
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
 	}
-	req.ID = id
 
-	err = ac.validator.Struct(req)
+	req.ID = userID
+
+	err := ac.validator.Struct(req)
 	if err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
 			if err.StructField() == "Username" {
@@ -175,22 +218,23 @@ func (ac *ApiController) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, fmt.Sprint("successfully updated login user"))
+	return c.JSON(http.StatusOK, fmt.Sprint("successfully updated"))
 }
 
 // DeleteUser - удаление пользователя по ID
 func (ac *ApiController) DeleteUser(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		ac.logger.Debug().Msgf("deleteUser: invalid id: %d, err: %v", id, err)
+	id := c.Get("userId")
+	userID, ok := id.(int)
+	if ok != true {
+		ac.logger.Debug().Msgf("DeleteUser: invalid id: %d", id)
 
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
 	}
 
-	err = ac.UserService.DeleteUser(c.Request().Context(), id)
+	err := ac.UserService.DeleteUser(c.Request().Context(), userID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, fmt.Sprintf("successfully deleted user: %d", id))
+	return c.JSON(http.StatusOK, fmt.Sprintf("successfully deleted user: %d", userID))
 }

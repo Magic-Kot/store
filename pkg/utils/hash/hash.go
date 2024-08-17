@@ -8,10 +8,10 @@ import (
 
 const salt = "qwertyuiop0sdfghjklzxcvbnm1234567890QWE8TYUIOPASDFGHJKLZXCVBNM"
 
-// GeneratePasswordHash - генерация хеша пароля
-func GeneratePasswordHash(password string) string {
+// GenerateHash - генерация хеша
+func GenerateHash(str string) string {
 	hash := sha256.New()
-	hash.Write([]byte(password))
+	hash.Write([]byte(str))
 
 	return fmt.Sprintf("%x", hash.Sum([]byte(salt)))
 }

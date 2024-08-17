@@ -31,6 +31,7 @@ type ConfigDeps struct {
 	SSLMode     string
 }
 
+// NewClient создает клиента, подключаемый к базе данных по URL: postgres://postgres:12345@localhost:5438/postgres
 func NewClient(ctx context.Context, cfg *ConfigDeps) (*sqlx.DB, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("creating a Postgres client")

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Magic-Kot/store/internal/models"
 	"github.com/Magic-Kot/store/pkg/client/postg"
 
 	"github.com/rs/zerolog"
@@ -26,7 +27,7 @@ func NewUserRepository(client postg.Client) *UserRepository {
 }
 
 // GetUser - получение сущности пользователя по ID
-func (r *UserRepository) GetUser(ctx context.Context, id int) (string, string, error) {
+func (r *UserRepository) GetUser(ctx context.Context, user *models.User) (*models.User, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("starting the GET request handler")
 
@@ -36,7 +37,7 @@ func (r *UserRepository) GetUser(ctx context.Context, id int) (string, string, e
 		WHERE id = $1
 	`
 
-	logger.Debug().Msgf("postgres: get user by id: %d\n", id)
+	logger.Debug().Msgf("postgres: get user by id: %d\n", user.ID)
 	var username, email string
 	//что лучше использовать map[string]string, struct User?
 
@@ -44,17 +45,17 @@ func (r *UserRepository) GetUser(ctx context.Context, id int) (string, string, e
 	//tx, err := r.client.Begin(ctx)
 	//row := tx.QueryRow(q, id)
 
-	err := r.client.QueryRowx(q, id).Scan(&username, &email)
+	err := r.client.QueryRowx(q, user.ID).Scan(&user.Username, &user.Email)
 
 	logger.Debug().Msgf("postgres returned: login: %s, email: %s, err: %s\n", username, email, err)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", "", errUserNotFound
+		return nil, errUserNotFound
 	} else if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	return username, email, nil
+	return user, nil
 }
 
 // GetAllUser - получение login всех пользователей
@@ -81,12 +82,30 @@ func (r *UserRepository) CreateUser(ctx context.Context, username string, passwo
 	return id, nil
 }
 
-// AuthorizationUser - авторизация пользователя
-func (r *UserRepository) AuthorizationUser(ctx context.Context, login string) (string, error) {
+// SignIn - индетификация, аутентификация пользователя, получение
+func (r *UserRepository) SignIn(ctx context.Context, user *models.UserAuthorization) (*models.UserAuthorization, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("starting the POST request handler")
 
-	return "", nil
+	q := `
+		SELECT id, password
+		FROM users
+		WHERE username = $1
+	`
+
+	logger.Debug().Msgf("postgres SignIn: by login: %s\n", user.Username)
+
+	err := r.client.QueryRowx(q, user.Username).Scan(&user.ID, &user.Password)
+
+	logger.Debug().Msgf("postgres returned: passwordHash: %s, err: %s\n", user.Password, err)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errUserNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // UpdateUser - обновление данных пользователя по ID
@@ -102,7 +121,6 @@ func (r *UserRepository) UpdateUser(ctx context.Context, value string, arg []int
 	// pq: syntax error at or near \"WHERE\"
 
 	if err != nil {
-		fmt.Println(fmt.Sprintf("%T", err))
 		return errors.New(fmt.Sprint("failed to update login user. ", err))
 	}
 

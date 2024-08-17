@@ -7,12 +7,17 @@ import (
 )
 
 func SetUserRoutes(e *echo.Echo, apiController *controllers.ApiController) {
-	r := e.Group("/user")
+	auth := e.Group("/auth")
+	{
+		auth.POST("/sign-up", apiController.CreateUser)
+		auth.POST("/sign-in", apiController.SignIn)
+	}
 
-	r.POST("/sign-up", apiController.CreateUser)
-	r.POST("/sign-in", apiController.AuthorizationUser)
+	r := e.Group("/user", apiController.AuthorizationUser) //, apiController.AuthorizationUser
+	{
+		r.GET("/get", apiController.GetUser)
+		r.PUT("/update", apiController.UpdateUser)
+		r.DELETE("/delete", apiController.DeleteUser)
+	}
 
-	r.GET("/:id", apiController.GetUser)
-	r.PUT("/update/:id", apiController.UpdateUser)
-	r.DELETE("/delete/:id", apiController.DeleteUser)
 }
