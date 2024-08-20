@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
+	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
 
 	"github.com/Magic-Kot/store/internal/config"
 	"github.com/Magic-Kot/store/internal/controllers"
@@ -25,10 +25,9 @@ func main() {
 	//var cfg httpserver.ServerDeps
 	var cfg config.Config
 
-	err := cleanenv.ReadConfig("../internal/config/config.yml", &cfg)
+	err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("error initializing config")
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("error initializing config")
 	}
 
 	// create logger
@@ -38,8 +37,7 @@ func main() {
 
 	logger, err := logging.NewLogger(&logCfg)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to init logger")
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("failed to init logger")
 	}
 
 	logger.Info().Msg("init logger")
@@ -72,21 +70,32 @@ func main() {
 
 	pool, err := postg.NewClient(ctx, &repo)
 	if err != nil {
-		logger.Fatal().Msg(fmt.Sprint("NewClient:", err))
-		//os.Exit(1)
+		logger.Fatal().Err(err).Msg(fmt.Sprint("NewClient:", err))
 	}
 
 	// create repository
 	db := postgres.NewUserRepository(pool)
 
+	// create tokenJWT
+	tokenCfg := jwt_token.TokenJWTDeps{
+		SigningKey:      cfg.AuthDeps.SigningKey,
+		AccessTokenTTL:  cfg.AuthDeps.AccessTokenTTL,
+		RefreshTokenTTL: cfg.AuthDeps.RefreshTokenTTL,
+	}
+
+	tokenJWT, err := jwt_token.NewTokenJWT(&tokenCfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init tokenJWT")
+	}
+
 	// create service
-	service := user.NewUserService(db)
+	service := user.NewUserService(db, tokenJWT)
 
 	// create validator
 	validate := validator.New()
 
 	// create controller
-	contr := controllers.NewApiController(service, logger, validate)
+	contr := controllers.NewApiController(service, logger, validate, tokenJWT)
 
 	// set routes
 	httpecho.SetUserRoutes(server.Server(), contr)

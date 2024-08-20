@@ -3,38 +3,26 @@
 ## In the current version, the server supports:
 
 
-1) User registration. Request Example:  
-    `host:port/auth/sign-up`  
-   `{
-   "login": "username",
-   "password": "userpassword"
-   }`  
-   The login must contain from 4 to 20 characters, the password from 6 to 20.
+1) User registration / authorization. Request Example:  
+   `host:port/auth`
 
- 
-2) User authorization. Request Example:  
-   `host:port/auth/sign-in`  
-   `{
-   "login": "username",
-   "password": "userpassword"
-   }`
+| Path       | Method | Request                                                                                 | Description    |
+|------------|--------|-----------------------------------------------------------------------------------------|----------------|
+| `/sign-up` | POST   | Body: `{"login": "username", "password": "userpassword"}`                               | Registration   |
+| `/sign-in` | POST   | Query Params: `GUID=guid`<br/>Body: `{"login": "username", "password": "userpassword"}` | Authorization  |
+| `/refresh` | POST   | Cookie: `refreshToken=token; Path=/auth/refresh; HttpOnly;`                             | Refresh tokens |
 
+   When registering, the login must contain from 4 to 20 characters, the password - from 6 to 20.  
+   When logging in, the Login and password must contain from 1 to 20 characters.
    
-3) Getting user data. Request Example:
-   `host:port/user/get`  
-   `Header. Authorization: token`
+   
+2) Working with the user. Request Example:  
+   `host:port/user`
 
+| Path      | Method | Request                                                                            | Description                           |
+|-----------|--------|------------------------------------------------------------------------------------|---------------------------------------|
+| `/get`    | GET    | Header: `Authorization: token`                                                     | Getting user data                     |
+| `/update` | PUT    | Header: `Authorization: token`<br/>Body: `{"login": "username", "email": "email"}` | Changing the login or other user data |
+| `/delete` | DELETE | Header: `Authorization: token`                                                     | Deleting the user                     |
 
-4) Changing the login or other user data. Request Example:  
-    `host:port/user/update`  
-    `{
-    "login": "username",
-    "email": "email"
-    }`  
-   `Header. Authorization: token`  
    The login must contain from 4 to 20 characters.
-
-
-5) Deleting the user. Request Example:  
-   `host:port/user/delete`
-   `Header. Authorization: token` 

@@ -2,9 +2,12 @@ package models
 
 type User struct {
 	ID       int    `json:"id"           validate:"required,min=1"`
-	Username string `json:"login"        validate:"min=4,max=20"`
+	Username string `json:"login"        validate:"max=20"` //min=4,
+	Name     string `json:"name"         validate:"min=1,max=20"`
+	Surname  string `json:"surname"      validate:"min=1,max=20"`
 	Email    string `json:"email"        validate:"email"`
-	//Age       int    `json:"age"         validate:"gte=0,lte=120"`
+	Age      int    `json:"age"          validate:"gte=0,lte=120"`
+	Avatar   string `json:"avatar"`
 }
 
 type UserLogin struct {
@@ -16,6 +19,7 @@ type UserLogin struct {
 
 type UserAuthorization struct {
 	ID       int    `json:"id"`
+	GUID     string `json:"guid"`
 	Username string `json:"login"        validate:"required,min=1,max=20"`
 	Password string `json:"password"     validate:"required,min=1,max=20"`
 }

@@ -2,10 +2,23 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users
 (
-    id          SERIAL         PRIMARY KEY,
-    username    VARCHAR(30)    NOT NULL        UNIQUE,
-    password    VARCHAR        NOT NULL,
-    email       VARCHAR        DEFAULT('')
+    id            SERIAL         PRIMARY KEY,
+    username      VARCHAR(30)    NOT NULL        UNIQUE,
+    password      VARCHAR        NOT NULL,
+    name          VARCHAR        DEFAULT(''),
+    surname       VARCHAR        DEFAULT(''),
+    email         VARCHAR        DEFAULT('')     UNIQUE,
+    age           INTEGER        DEFAULT(0),
+    avatar        VARCHAR        DEFAULT('')
+);
+
+CREATE TABLE IF NOT EXISTS sessions
+(
+    id            SERIAL         PRIMARY KEY,
+    userId        INTEGER references users (id) on delete cascade    NOT NULL,
+    guid          VARCHAR        DEFAULT(''),
+    refreshToken  VARCHAR        DEFAULT(''),
+    expiresAt     VARCHAR        DEFAULT('')
 );
 
 CREATE TABLE IF NOT EXISTS cart

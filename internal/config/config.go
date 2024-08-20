@@ -6,6 +6,7 @@ type Config struct {
 	ServerDeps   ServerDeps   `yaml:"server"`
 	PostgresDeps PostgresDeps `yaml:"repository"`
 	LoggerDeps   LoggerDeps   `yaml:"logger"`
+	AuthDeps     AuthDeps     `yaml:"auth"`
 }
 
 type ServerDeps struct {
@@ -26,4 +27,10 @@ type PostgresDeps struct {
 
 type LoggerDeps struct {
 	LogLevel string `yaml:"logLevel" env:"LOG_LEVEL" env-default:"info"`
+}
+
+type AuthDeps struct {
+	SigningKey      string        `yaml:"signingKey" env:"SIGNING_KEY" env-default:""`
+	AccessTokenTTL  time.Duration `yaml:"accessTokenTTL" env:"ACCESS_TOKEN_TTL" env-default:"1h"`
+	RefreshTokenTTL time.Duration `yaml:"refreshTokenTTL" env:"REFRESH_TOKEN_TTL" env-default:"4h"`
 }
