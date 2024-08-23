@@ -111,13 +111,15 @@ func (r *UserRepository) SignIn(ctx context.Context, user *models.UserAuthorizat
 func (r *UserRepository) CreateSession(ctx context.Context, value string, arg []interface{}) (int, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Postgres using the 'CreateSession' method")
-	logger.Debug().Msgf("postgres: update user by id: %d, value: %s, arg: %v", arg[0], value, arg[1:])
+	logger.Debug().Msgf("postgres: create session by id: %d, value: %s, arg: %v", arg[0], value, arg[1:])
 
 	q := fmt.Sprintf(`INSERT INTO sessions (%s) VALUES ($1, $2, $3, $4) RETURNING id`, value)
 
 	var id int
 
 	if err := r.client.QueryRowx(q, arg...).Scan(&id); err != nil {
+		logger.Debug().Msgf("failed to create session. postgres: %s", err)
+
 		return 0, errors.New(fmt.Sprint("failed to create session. postgres: ", err))
 	}
 
@@ -128,6 +130,7 @@ func (r *UserRepository) CreateSession(ctx context.Context, value string, arg []
 func (r *UserRepository) GetSession(ctx context.Context, table string, column string, value string, arg []interface{}) (string, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Postgres using the 'GetSession' method")
+	logger.Debug().Msgf("postgres: get session by table: %s, column: %s, value: %s, arg: %v", table, column, value, arg)
 
 	q := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = $1`, value, table, column)
 
@@ -136,8 +139,10 @@ func (r *UserRepository) GetSession(ctx context.Context, table string, column st
 	err := r.client.QueryRowx(q, arg...).Scan(&check)
 
 	if errors.Is(err, sql.ErrNoRows) {
+		logger.Debug().Msgf("session not found. postgres: %s", err)
 		return "", errUserNotFound
 	} else if err != nil {
+		logger.Debug().Msgf("failed to get session. postgres: %s", err)
 		return "", err
 	}
 
@@ -148,6 +153,7 @@ func (r *UserRepository) GetSession(ctx context.Context, table string, column st
 func (r *UserRepository) UpdateUser(ctx context.Context, table string, column string, value string, arg []interface{}) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Postgres using the 'UpdateUser' method")
+	logger.Debug().Msgf("postgres: update table by table: %s, column: %s, value: %s, arg: %v", table, column, value, arg)
 
 	q := fmt.Sprintf(`UPDATE %s SET %s WHERE %s = $1`, table, value, column)
 
@@ -156,7 +162,8 @@ func (r *UserRepository) UpdateUser(ctx context.Context, table string, column st
 	// pq: syntax error at or near \"WHERE\"
 
 	if err != nil {
-		return errors.New(fmt.Sprint("failed to update the user. ", err))
+		logger.Debug().Msgf("failed table updates. postgres: %s", err)
+		return errors.New(fmt.Sprint("failed table updates: ", err))
 	}
 
 	if str, _ := commandTag.RowsAffected(); str != 1 {

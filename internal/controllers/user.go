@@ -37,6 +37,10 @@ func NewApiController(userService *user.UserService, logger *zerolog.Logger, val
 
 // GetUser - получение сущности пользователя по ID
 func (ac *ApiController) GetUser(c echo.Context) error {
+	// TODO: прокинуть логер в контекст echo
+	ctx := c.Request().Context()
+	ctx = ac.logger.WithContext(ctx)
+
 	req := new(models.User)
 	id := c.Get("id")
 
@@ -62,6 +66,10 @@ func (ac *ApiController) GetUser(c echo.Context) error {
 
 // CreateUser - регистрация нового пользователя
 func (ac *ApiController) CreateUser(c echo.Context) error {
+	// TODO: прокинуть логер в контекст echo
+	ctx := c.Request().Context()
+	ctx = ac.logger.WithContext(ctx)
+
 	req := new(models.UserLogin)
 	if err := c.Bind(req); err != nil {
 		ac.logger.Warn().Msgf("bind: invalid request: %v", err)
@@ -108,6 +116,10 @@ func (ac *ApiController) CreateUser(c echo.Context) error {
 
 // SignIn - аутентификация пользователя, парсинг Username, Password
 func (ac *ApiController) SignIn(c echo.Context) error {
+	// TODO: прокинуть логер в контекст echo
+	ctx := c.Request().Context()
+	ctx = ac.logger.WithContext(ctx)
+
 	req := new(models.UserAuthorization)
 
 	req.GUID = c.QueryParam("GUID")
@@ -146,10 +158,6 @@ func (ac *ApiController) SignIn(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	// TODO: прокинуть логер в контекст echo и далее во все обработчики
-	// временное решение
-	ctx := c.Request().Context()
-	ctx = ac.logger.WithContext(ctx)
 	tokens, err := ac.UserService.SignIn(ctx, req)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
@@ -168,36 +176,32 @@ func (ac *ApiController) SignIn(c echo.Context) error {
 
 // RefreshToken - получение новых refresh и access токенов
 func (ac *ApiController) RefreshToken(c echo.Context) error {
-	cookie, err := c.Cookie("refreshToken")
+	// TODO: прокинуть логер в контекст echo
+	ctx := c.Request().Context()
+	ctx = ac.logger.WithContext(ctx)
+
+	cookieRequest, err := c.Cookie("refreshToken")
 	if err != nil {
 		return err
 	}
 
-	// TODO: прокинуть логер в контекст echo и далее во все обработчики
-	// временное решение
-	ctx := c.Request().Context()
-	ctx = ac.logger.WithContext(ctx)
+	// TODO: валидация токена?
 
-	tokens, err := ac.UserService.RefreshToken(ctx, cookie.Value)
+	tokens, err := ac.UserService.RefreshToken(ctx, cookieRequest.Value)
+	if err != nil {
+		//return c.Redirect(http.StatusUnauthorized, "/sign-in")
+		return c.JSON(http.StatusUnauthorized, err.Error())
+	}
 
-	return c.JSON(http.StatusOK, tokens)
+	cookie := new(http.Cookie)
+	cookie.Name = "refreshToken"
+	cookie.Value = tokens.RefreshToken
+	cookie.Path = "/auth"
+	cookie.Expires = time.Now().Add(4 * time.Hour) // TODO: применить переменную из созданной сессии // =expiresAt
+	cookie.HttpOnly = true
+	c.SetCookie(cookie)
 
-	//header := c.Request().Header.Get("Authorization")
-	//if header == "" {
-	//	ac.logger.Debug().Msgf("empty 'Authorization' header: %v", header)
-	//
-	//	return c.JSON(http.StatusUnauthorized, errAutorizationUser)
-	//}
-	//
-	//headerParts := strings.Split(header, " ")
-	//
-	//if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-	//	ac.logger.Debug().Msgf("invalid 'Authorization' header: %v", header)
-	//
-	//	return c.JSON(http.StatusUnauthorized, errAutorizationUser)
-	//}
-
-	return nil
+	return c.JSON(http.StatusOK, tokens.AccessToken)
 }
 
 // TODO: некорректное расположение кода AuthorizationUser
@@ -243,6 +247,10 @@ func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFu
 
 // UpdateUser - обновление данных пользователя по ID
 func (ac *ApiController) UpdateUser(c echo.Context) error {
+	// TODO: прокинуть логер в контекст echo
+	ctx := c.Request().Context()
+	ctx = ac.logger.WithContext(ctx)
+
 	//req := new(models.User)
 	var req models.User
 	if err := c.Bind(&req); err != nil {
@@ -299,6 +307,10 @@ func (ac *ApiController) UpdateUser(c echo.Context) error {
 
 // DeleteUser - удаление пользователя по ID
 func (ac *ApiController) DeleteUser(c echo.Context) error {
+	// TODO: прокинуть логер в контекст echo
+	ctx := c.Request().Context()
+	ctx = ac.logger.WithContext(ctx)
+
 	id := c.Get("id")
 	userId, ok := id.(string)
 	if ok != true {

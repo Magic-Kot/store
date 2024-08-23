@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
-
 	"github.com/Magic-Kot/store/internal/config"
 	"github.com/Magic-Kot/store/internal/controllers"
 	"github.com/Magic-Kot/store/internal/delivery/httpecho"
@@ -13,6 +11,7 @@ import (
 	"github.com/Magic-Kot/store/pkg/client/postg"
 	"github.com/Magic-Kot/store/pkg/httpserver"
 	"github.com/Magic-Kot/store/pkg/logging"
+	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/ilyakaznacheev/cleanenv"

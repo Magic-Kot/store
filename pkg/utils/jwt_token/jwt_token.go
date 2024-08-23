@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -72,7 +73,17 @@ func (m *Manager) ParseToken(accessToken string) (string, error) {
 
 // NewRefreshToken - генерация Refresh токена
 func (m *Manager) NewRefreshToken(id string) string {
-	data := fmt.Sprintf("\"id\": %s", id) // "{\n\t\"id\": \"%s\"\n}"
+	b := make([]byte, 32)
+
+	s := rand.NewSource(time.Now().Unix())
+	r := rand.New(s)
+
+	_, err := r.Read(b)
+	if err != nil {
+		return "" //, err
+	}
+
+	data := fmt.Sprintf("\"id\": %s %s", id, string(b))
 	encoded := base64.StdEncoding.EncodeToString([]byte(data))
 
 	return encoded
@@ -86,21 +97,6 @@ func (m *Manager) ParseRefreshToken(refreshToken string) (string, error) {
 
 	return string(data), nil
 }
-
-// NewRefreshToken - генерация Refresh токена
-//func (m *Manager) NewRefreshToken() (string, error) {
-//	b := make([]byte, 32)
-//
-//	s := rand.NewSource(time.Now().Unix())
-//	r := rand.New(s)
-//
-//	_, err := r.Read(b)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return fmt.Sprintf("%x", b), nil
-//}
 
 func (m *Manager) RefreshTokenTTL() time.Duration {
 	return m.refreshTokenTTL
