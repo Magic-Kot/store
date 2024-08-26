@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +12,8 @@ import (
 	"github.com/Magic-Kot/store/internal/models"
 	"github.com/Magic-Kot/store/pkg/utils/hash"
 	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
+
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -100,12 +102,11 @@ func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization
 		ExpiresAt:    time.Now().Add(s.token.RefreshTokenTTL()),
 	}
 
+	// checking for an open session
+	// GetSession - метод возвращает ошибку в случае отсутствия сессии
 	arg := make([]interface{}, 0)
 	arg = append(arg, user.ID)
 
-	// checking for an open session
-	// GetSession - метод возвращает ошибку в случае отсутствия сессии
-	// TODO: уменьшить число обращений к базе
 	_, err = s.UserRepository.GetSession(ctx, "sessions", "userId", "1", arg)
 
 	if err != nil {
@@ -188,13 +189,9 @@ func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.
 	}
 
 	// update session
+	arg = append(arg, session.RefreshToken, session.ExpiresAt)
 
-	arg2 := make([]interface{}, 0)
-	arg2 = append(arg2, userId[1])
-
-	arg2 = append(arg2, session.RefreshToken, session.ExpiresAt)
-
-	err = s.UserRepository.UpdateUser(ctx, "sessions", "userId", "refreshToken=$2, expiresAt=$3", arg2)
+	err = s.UserRepository.UpdateUser(ctx, "sessions", "userId", "refreshToken=$2, expiresAt=$3", arg)
 	if err != nil {
 		return res, err
 	}
@@ -204,24 +201,32 @@ func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.
 
 // UpdateUser - обновление данных пользователя по id
 func (s *UserService) UpdateUser(ctx context.Context, user *models.User) error {
+	logger := zerolog.Ctx(ctx)
+	logger.Debug().Msg("starting the service 'UpdateUser'")
+
 	value := make([]string, 0)
 	arg := make([]interface{}, 0)
 	argId := 2
 
 	arg = append(arg, user.ID)
 
-	if user.Username != "" {
-		value = append(value, fmt.Sprintf("username=$%d", argId)) //username=$2
-		arg = append(arg, user.Username)
+	values := reflect.ValueOf(*user)
+	types := values.Type()
+
+	if user.Age != 0 {
+		value = append(value, fmt.Sprintf("age=$%d", argId)) //age=$2
+		arg = append(arg, user.Age)
 		argId++
 	}
 
-	// TODO: оптимизировать код для записи любого кол-во полей в бд
+	for i := 2; i < values.NumField(); i++ {
+		if values.Field(i).String() != "" {
+			fmt.Println(types.Field(i).Name, values.Field(i))
 
-	if user.Email != "" {
-		value = append(value, fmt.Sprintf("email=$%d", argId)) //username=$2 email=$3
-		arg = append(arg, user.Email)
-		argId++
+			value = append(value, fmt.Sprintf("%s=$%d", types.Field(i).Name, argId))
+			arg = append(arg, values.Field(i).String())
+			argId++
+		}
 	}
 
 	valueQuery := strings.Join(value, ", ")

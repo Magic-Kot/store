@@ -1,3 +1,5 @@
 *.exe
 *.env
 .idea/
+data/
+old_client.go

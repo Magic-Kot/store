@@ -17,13 +17,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var errAutorizationUser = errors.New("an unauthorized user")
+var errAuthorizationUser = errors.New("an unauthorized user")
 
 type ApiController struct {
 	UserService user.UserService
-	logger      *zerolog.Logger
-	validator   *validator.Validate
-	token       *jwt_token.Manager
+	//middleware  *middleware.ApiController
+	logger    *zerolog.Logger
+	validator *validator.Validate
+	token     *jwt_token.Manager
 }
 
 func NewApiController(userService *user.UserService, logger *zerolog.Logger, validator *validator.Validate, token *jwt_token.Manager) *ApiController {
@@ -182,10 +183,8 @@ func (ac *ApiController) RefreshToken(c echo.Context) error {
 
 	cookieRequest, err := c.Cookie("refreshToken")
 	if err != nil {
-		return err
+		return c.JSON(http.StatusUnauthorized, err.Error())
 	}
-
-	// TODO: валидация токена?
 
 	tokens, err := ac.UserService.RefreshToken(ctx, cookieRequest.Value)
 	if err != nil {
@@ -213,7 +212,7 @@ func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFu
 		if header == "" {
 			ac.logger.Debug().Msgf("empty 'Authorization' header: %v", header)
 
-			return c.JSON(http.StatusUnauthorized, errAutorizationUser)
+			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
 
 		headerParts := strings.Split(header, " ")
@@ -221,14 +220,14 @@ func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFu
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
 			ac.logger.Debug().Msgf("invalid 'Authorization' header: %v", header)
 
-			return c.JSON(http.StatusUnauthorized, errAutorizationUser)
+			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
 
 		id, err := ac.token.ParseToken(headerParts[1])
 		if err != nil {
 			ac.logger.Debug().Msgf("invalid authorization token: %v", err)
 
-			return c.JSON(http.StatusUnauthorized, errAutorizationUser)
+			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
 
 		ac.logger.Debug().Msgf("id: %s", id)
@@ -250,6 +249,7 @@ func (ac *ApiController) UpdateUser(c echo.Context) error {
 	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
+	ac.logger.Debug().Msgf("starting the handler 'UpdateUser'")
 
 	//req := new(models.User)
 	var req models.User
@@ -277,27 +277,33 @@ func (ac *ApiController) UpdateUser(c echo.Context) error {
 
 	err = ac.validator.Struct(&req)
 
-	// TODO: оптимизировать код для валидации
+	// TODO: switch?
 
 	if err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
-			if err.StructField() == "Username" && err.Value() != "" {
+			if err.StructField() == "ID" && err.Value() != "" {
+				return c.JSON(http.StatusBadRequest, fmt.Sprintf("incorrect id"))
+			} else if err.StructField() == "Age" && err.Value() != "" {
+				return c.JSON(http.StatusBadRequest, fmt.Sprintf("incorrect age"))
+			} else if err.StructField() == "Username" && err.Value() != "" {
 				switch err.Tag() {
 				case "min":
-					return c.JSON(http.StatusBadRequest, fmt.Sprintf("The minimum login length is 4 characters"))
+					return c.JSON(http.StatusBadRequest, fmt.Sprintf("the minimum login length is 4 characters"))
 				case "max":
-					return c.JSON(http.StatusBadRequest, fmt.Sprintf("The maximum login length is 20 characters"))
+					return c.JSON(http.StatusBadRequest, fmt.Sprintf("the maximum login length is 20 characters"))
 				}
-			}
-
-			if err.StructField() == "Email" && err.Value() != "" {
-				return c.JSON(http.StatusBadRequest, fmt.Sprintf("Incorrect email"))
+			} else if err.StructField() == "Name" && err.Value() != "" {
+				return c.JSON(http.StatusBadRequest, fmt.Sprintf("incorrect name"))
+			} else if err.StructField() == "Surname" && err.Value() != "" {
+				return c.JSON(http.StatusBadRequest, fmt.Sprintf("incorrect surname"))
+			} else if err.StructField() == "Email" && err.Value() != "" {
+				return c.JSON(http.StatusBadRequest, fmt.Sprintf("incorrect email"))
 			}
 			return c.JSON(http.StatusBadRequest, err.Error())
 		}
 	}
 
-	err = ac.UserService.UpdateUser(c.Request().Context(), &req)
+	err = ac.UserService.UpdateUser(ctx, &req)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, err.Error())
 	}

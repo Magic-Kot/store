@@ -25,6 +25,9 @@ func main() {
 	var cfg config.Config
 
 	err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
+	//err := cleanenv.ReadConfig("config.yml", &cfg) // for docker
+	//err := cleanenv.ReadConfig("internal/config/config.env", &cfg)
+	//err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing config")
 	}

@@ -2,7 +2,6 @@ package httpecho
 
 import (
 	"github.com/Magic-Kot/store/internal/controllers"
-
 	"github.com/labstack/echo/v4"
 )
 
@@ -15,6 +14,7 @@ func SetUserRoutes(e *echo.Echo, apiController *controllers.ApiController) {
 	}
 
 	r := e.Group("/user", apiController.AuthorizationUser)
+	//r := e.Group("/user", middleware.AuthorizationUser)
 	{
 		r.GET("/get", apiController.GetUser)
 		r.PUT("/update", apiController.UpdateUser)

@@ -81,10 +81,11 @@ func (r *UserRepository) CreateUser(ctx context.Context, username string, passwo
 	return id, nil
 }
 
-// SignIn - индетификация, аутентификация пользователя, получение
+// SignIn - аутентификация пользователя, получение
 func (r *UserRepository) SignIn(ctx context.Context, user *models.UserAuthorization) (*models.UserAuthorization, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Postgres using the 'SignIn' method")
+	logger.Debug().Msgf("postgres SignIn: by login: %s", user.Username)
 
 	q := `
 		SELECT id, password
@@ -92,15 +93,13 @@ func (r *UserRepository) SignIn(ctx context.Context, user *models.UserAuthorizat
 		WHERE username = $1
 	`
 
-	logger.Debug().Msgf("postgres SignIn: by login: %s", user.Username)
-
 	err := r.client.QueryRowx(q, user.Username).Scan(&user.ID, &user.Password)
 
-	logger.Debug().Msgf("postgres returned: passwordHash: %s, err: %s", user.Password, err)
-
 	if errors.Is(err, sql.ErrNoRows) {
+		logger.Debug().Msgf("user not found. postgres: %s", err)
 		return nil, errUserNotFound
 	} else if err != nil {
+		logger.Debug().Msgf("failed to get user. postgres: %s", err)
 		return nil, err
 	}
 
@@ -158,8 +157,6 @@ func (r *UserRepository) UpdateUser(ctx context.Context, table string, column st
 	q := fmt.Sprintf(`UPDATE %s SET %s WHERE %s = $1`, table, value, column)
 
 	commandTag, err := r.client.Exec(q, arg...)
-	//тут должна быть обработка ошибок:
-	// pq: syntax error at or near \"WHERE\"
 
 	if err != nil {
 		logger.Debug().Msgf("failed table updates. postgres: %s", err)
@@ -167,6 +164,7 @@ func (r *UserRepository) UpdateUser(ctx context.Context, table string, column st
 	}
 
 	if str, _ := commandTag.RowsAffected(); str != 1 {
+		logger.Debug().Msgf("user not found. postgres: %s", err)
 		return errUserNotFound
 	}
 

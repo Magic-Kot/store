@@ -1,0 +1,28 @@
+---
+
+services:
+  app:
+    image: shop
+    container_name: shop-app
+    depends_on:
+      - postgresql
+    networks:
+      - ps
+
+  postgresql:
+    image: postgres:alpine
+    container_name: ps-psql
+    restart: always
+    ports:
+      - 127.0.0.1:5438:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: postgres
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    networks:
+      - ps
+
+networks:
+  ps:
