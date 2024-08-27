@@ -16,13 +16,14 @@ type ServerDeps struct {
 }
 
 type PostgresDeps struct {
-	MaxAttempts int    `env:"MAX_ATTEMPTS" yaml:"maxAttempts" env-default:"2"`
-	Username    string `env:"USERNAMEPOSTGRES"  yaml:"username" env-default:"postgres"`
-	Password    string `env:"PASSWORD" yaml:"password" env-default:"postgres"`
-	Host        string `env:"HOST" yaml:"host" env-default:"127.0.0.1"`
-	Port        string `env:"PORT" yaml:"port" env-default:"5432"`
-	Database    string `env:"DATABASE" yaml:"database" env-default:"postgres"`
-	SSLMode     string `env:"MODELESS" yaml:"sslMode" env-default:"disable"`
+	MaxAttempts int           `env:"MAX_ATTEMPTS" yaml:"maxAttempts" env-default:"3"`
+	Delay       time.Duration `env:"DELAY" yaml:"delay" env-default:"10s"`
+	Username    string        `env:"USERNAMEPOSTGRES"  yaml:"username" env-default:"postgres"`
+	Password    string        `env:"PASSWORD" yaml:"password" env-default:"postgres"`
+	Host        string        `env:"HOST" yaml:"host" env-default:"127.0.0.1"`
+	Port        string        `env:"PORT" yaml:"port" env-default:"5432"`
+	Database    string        `env:"DATABASE" yaml:"database" env-default:"postgres"`
+	SSLMode     string        `env:"MODELESS" yaml:"sslMode" env-default:"disable"`
 }
 
 type LoggerDeps struct {

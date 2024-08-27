@@ -62,6 +62,7 @@ func main() {
 	// create client
 	repo := postg.ConfigDeps{
 		MaxAttempts: cfg.PostgresDeps.MaxAttempts,
+		Delay:       cfg.PostgresDeps.Delay,
 		Username:    cfg.PostgresDeps.Username,
 		Password:    cfg.PostgresDeps.Password,
 		Host:        cfg.PostgresDeps.Host,
@@ -72,7 +73,7 @@ func main() {
 
 	pool, err := postg.NewClient(ctx, &repo)
 	if err != nil {
-		logger.Fatal().Err(err).Msg(fmt.Sprint("NewClient:", err))
+		logger.Fatal().Err(err).Msg(fmt.Sprint("NewClient: ", err))
 	}
 
 	// create repository

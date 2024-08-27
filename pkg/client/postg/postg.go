@@ -3,12 +3,16 @@ package postg
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 )
+
+var errConnectingPostgres = errors.New("error connecting to postgres")
 
 type Client interface {
 	// Exec - выполняет запрос, не возвращая никаких строк. Аргументы предназначены для любых параметров-заполнителей в запросе.
@@ -23,6 +27,7 @@ type Client interface {
 
 type ConfigDeps struct {
 	MaxAttempts int
+	Delay       time.Duration
 	Username    string
 	Password    string
 	Host        string
@@ -32,57 +37,43 @@ type ConfigDeps struct {
 }
 
 // NewClient создает клиента, подключаемый к базе данных по URL: postgres://postgres:12345@localhost:5438/postgres
-func NewClient(ctx context.Context, cfg *ConfigDeps) (*sqlx.DB, error) {
+func NewClient(ctx context.Context, cfg *ConfigDeps) (db *sqlx.DB, err error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("creating a Postgres client")
 	logger.Debug().Msgf("config: %+v", cfg)
 
-	db, err := sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.Username, cfg.Database, cfg.Password, cfg.SSLMode))
-	if err != nil {
-		logger.Error().Msgf("errOpen:error connecting to Postgres: %v", err)
-		return nil, err
+	fn := func() error {
+		db, err = sqlx.Connect("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+			cfg.Host, cfg.Port, cfg.Username, cfg.Database, cfg.Password, cfg.SSLMode))
+
+		if err != nil {
+			logger.Debug().Msgf("error connecting to Postgres: %v", err)
+			return err
+		}
+		return nil
 	}
 
-	err = db.Ping()
+	err = Connection(fn, cfg.MaxAttempts, cfg.Delay)
+
 	if err != nil {
-		logger.Error().Msgf("errPing: error connecting to Postgres: %v", err)
-		return nil, err
+		logger.Debug().Msgf("error connecting to Postgres: %v", err)
+		return nil, errConnectingPostgres
 	}
+
+	logger.Info().Msg("successful connection to Postgres")
 
 	return db, nil
-
-	//delay := 5 * time.Second
-	//attempts := cfg.MaxAttempts
-
-	//for attempts > 0 {
-	//	if db, err = Connection(cfg, attempts, delay); err != nil {
-	//		time.Sleep(delay)
-	//		attempts--
-	//
-	//		continue
-	//	}
-	//}
-	//
-	//if err != nil {
-	//	logger.Info().Msg(fmt.Sprint("error connecting to Postgres:", err))
-	//	return nil, err
-	//}
-	//
-	//err = db.Ping()
-	//if err != nil {
-	//	logger.Info().Msg(fmt.Sprint("error connecting to Postgres:", err))
-	//	return nil, err
-	//}
-	//
-	//logger.Info().Msg("successful connection to Postgres")
-	//
-	//return db, err
 }
 
-//func Connection(cfg *ConfigDeps, attempts int, delay time.Duration) (db *sqlx.DB, err error) {
-//	db, err = sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
-//		cfg.Host, cfg.Port, cfg.Username, cfg.Database, cfg.Password, cfg.SSLMode))
-//
-//	return db, err
-//}
+func Connection(fn func() error, attempts int, delay time.Duration) (err error) {
+	for attempts > 0 {
+		if err = fn(); err != nil {
+			time.Sleep(delay)
+			attempts--
+
+			continue
+		}
+		return nil
+	}
+	return
+}
