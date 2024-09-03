@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Magic-Kot/store/internal/repository/redis"
+
 	"github.com/Magic-Kot/store/internal/config"
 	"github.com/Magic-Kot/store/internal/controllers"
 	"github.com/Magic-Kot/store/internal/delivery/httpecho"
 	"github.com/Magic-Kot/store/internal/repository/postgres"
 	"github.com/Magic-Kot/store/internal/services/user"
 	"github.com/Magic-Kot/store/pkg/client/postg"
+	"github.com/Magic-Kot/store/pkg/client/reds"
 	"github.com/Magic-Kot/store/pkg/httpserver"
 	"github.com/Magic-Kot/store/pkg/logging"
 	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
@@ -24,8 +27,8 @@ func main() {
 	//var cfg httpserver.ServerDeps
 	var cfg config.Config
 
-	err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
-	//err := cleanenv.ReadConfig("config.yml", &cfg) // for docker
+	//err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
+	err := cleanenv.ReadConfig("config.yml", &cfg) // for docker
 	//err := cleanenv.ReadConfig("internal/config/config.env", &cfg)
 	//err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
@@ -59,7 +62,7 @@ func main() {
 
 	server := httpserver.NewServer(&serv)
 
-	// create client
+	// create client Postgres
 	repo := postg.ConfigDeps{
 		MaxAttempts: cfg.PostgresDeps.MaxAttempts,
 		Delay:       cfg.PostgresDeps.Delay,
@@ -73,11 +76,28 @@ func main() {
 
 	pool, err := postg.NewClient(ctx, &repo)
 	if err != nil {
-		logger.Fatal().Err(err).Msg(fmt.Sprint("NewClient: ", err))
+		logger.Fatal().Err(err).Msgf("NewClient: %s", err)
 	}
 
-	// create repository
+	// create user repository
 	db := postgres.NewUserRepository(pool)
+
+	// create client Redis
+	redisCfg := reds.ConfigDeps{
+		Username: cfg.RedisDeps.Username,
+		Password: cfg.RedisDeps.Password,
+		Host:     cfg.RedisDeps.Host,
+		Port:     cfg.RedisDeps.Port,
+		Database: cfg.RedisDeps.Database,
+	}
+
+	clientRedis, err := reds.NewClientRedis(ctx, &redisCfg)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("redis: %s", err)
+	}
+
+	// create auth repository
+	rds := redis.NewAuthRepository(clientRedis)
 
 	// create tokenJWT
 	tokenCfg := jwt_token.TokenJWTDeps{
@@ -92,7 +112,7 @@ func main() {
 	}
 
 	// create service
-	service := user.NewUserService(db, tokenJWT)
+	service := user.NewUserService(db, rds, tokenJWT)
 
 	// create validator
 	validate := validator.New()

@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -30,14 +31,21 @@ type UserRepository interface {
 	DeleteUser(ctx context.Context, id int) error
 }
 
+type AuthRepository interface {
+	CreateSession(ctx context.Context, key string, value interface{}) (string, error)
+	GetSession(ctx context.Context, key string) (string, error)
+}
+
 type UserService struct {
 	UserRepository UserRepository
+	AuthRepository AuthRepository
 	token          *jwt_token.Manager
 }
 
-func NewUserService(userRepository UserRepository, token *jwt_token.Manager) *UserService {
+func NewUserService(userRepository UserRepository, authRepository AuthRepository, token *jwt_token.Manager) *UserService {
 	return &UserService{
 		UserRepository: userRepository,
+		AuthRepository: authRepository,
 		token:          token,
 	}
 }
@@ -52,8 +60,8 @@ func (s *UserService) GetUser(ctx context.Context, user *models.User) (*models.U
 	return user, nil
 }
 
-// CreateUser - регистрация нового пользователя
-func (s *UserService) CreateUser(ctx context.Context, login string, password string) (int, error) {
+// SignUp - регистрация нового пользователя
+func (s *UserService) SignUp(ctx context.Context, login string, password string) (int, error) {
 	passwordHash := hash.GenerateHash(password)
 
 	id, err := s.UserRepository.CreateUser(ctx, login, passwordHash)
@@ -64,10 +72,10 @@ func (s *UserService) CreateUser(ctx context.Context, login string, password str
 	return id, nil
 }
 
-// SignIn - аутентификация пользователя, получение токена
+// SignIn - аутентификация пользователя, получение токенов
 func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization) (models.Tokens, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Debug().Msg("starting the handler 'SignIn'")
+	logger.Debug().Msg("starting the 'SignIn' service")
 
 	var res models.Tokens
 
@@ -102,34 +110,10 @@ func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization
 		ExpiresAt:    time.Now().Add(s.token.RefreshTokenTTL()),
 	}
 
-	// checking for an open session
-	// GetSession - метод возвращает ошибку в случае отсутствия сессии
-	arg := make([]interface{}, 0)
-	arg = append(arg, user.ID)
-
-	_, err = s.UserRepository.GetSession(ctx, "sessions", "userId", "1", arg)
-
+	_, err = s.AuthRepository.CreateSession(ctx, strconv.Itoa(user.ID), session)
 	if err != nil {
-		arg = append(arg, user.GUID, session.RefreshToken, session.ExpiresAt)
-
-		_, err := s.UserRepository.CreateSession(ctx, "userId, guid, refreshToken, expiresAt", arg)
-		if err != nil {
-			logger.Debug().Msgf("failed to create session: %s", err)
-
-			return res, err
-		}
-
-		return res, nil
-	}
-
-	// update session
-	arg = append(arg, session.RefreshToken, session.ExpiresAt)
-
-	err = s.UserRepository.UpdateUser(ctx, "sessions", "userId", "refreshToken=$2, expiresAt=$3", arg)
-	if err != nil {
-		logger.Debug().Msgf("failed to update session: %s", err)
-
-		return res, err
+		logger.Debug().Msgf("failed to create session: %s", err)
+		return res, errors.New("failed to create session")
 	}
 
 	return res, nil
@@ -138,11 +122,12 @@ func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization
 // RefreshToken - получение новых refresh и access токенов
 func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.Tokens, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Debug().Msg("starting the handler 'RefreshToken'")
+	logger.Debug().Msg("starting the 'RefreshToken' service")
 
-	var res models.Tokens
-
-	arg := make([]interface{}, 0)
+	var (
+		res   models.Tokens
+		token models.Session
+	)
 
 	passwordDecode, err := s.token.ParseRefreshToken(refresh)
 	if err != nil {
@@ -153,24 +138,23 @@ func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.
 
 	userId := strings.Fields(passwordDecode)
 
-	arg = append(arg, userId[1])
+	session, err := s.AuthRepository.GetSession(ctx, userId[1])
 
-	passwordHash, err := s.UserRepository.GetSession(ctx, "sessions", "userId", "refreshToken", arg)
+	err = json.Unmarshal([]byte(session), &token)
 	if err != nil {
 		logger.Debug().Msgf("invalid refresh token: %s", err)
 		// redirecting to the authorization page
 		return res, errAutorizationUser
 	}
 
-	err = hash.CompareHashBcrypt(refresh, passwordHash)
+	err = hash.CompareHashBcrypt(refresh, token.RefreshToken)
 	if err != nil {
 		logger.Debug().Msgf("invalid refresh token: %s", err)
 		// redirecting to the authorization page
 		return res, errAutorizationUser
 	}
 
-	// TODO: код ниже вынести в отдельную функцию
-
+	// generation of new access and refresh tokens
 	res.AccessToken, err = s.token.NewJWT(userId[1])
 	if err != nil {
 		return res, err
@@ -183,17 +167,16 @@ func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.
 		return res, err
 	}
 
-	session := models.Session{
+	newSession := models.Session{
 		RefreshToken: RefreshTokenHash,
 		ExpiresAt:    time.Now().Add(s.token.RefreshTokenTTL()),
 	}
 
 	// update session
-	arg = append(arg, session.RefreshToken, session.ExpiresAt)
-
-	err = s.UserRepository.UpdateUser(ctx, "sessions", "userId", "refreshToken=$2, expiresAt=$3", arg)
+	_, err = s.AuthRepository.CreateSession(ctx, userId[1], newSession)
 	if err != nil {
-		return res, err
+		logger.Debug().Msgf("failed to update session: %s", err)
+		return res, errors.New("failed to update session")
 	}
 
 	return res, nil

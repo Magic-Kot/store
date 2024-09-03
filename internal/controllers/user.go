@@ -65,8 +65,8 @@ func (ac *ApiController) GetUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-// CreateUser - регистрация нового пользователя
-func (ac *ApiController) CreateUser(c echo.Context) error {
+// SignUp - регистрация нового пользователя
+func (ac *ApiController) SignUp(c echo.Context) error {
 	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
@@ -106,7 +106,7 @@ func (ac *ApiController) CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	id, err := ac.UserService.CreateUser(c.Request().Context(), req.Username, req.Password)
+	id, err := ac.UserService.SignUp(c.Request().Context(), req.Username, req.Password)
 	if err != nil {
 		// нет обработки ошибки на уникальность логина
 		return c.JSON(http.StatusInternalServerError, err.Error())
@@ -123,6 +123,18 @@ func (ac *ApiController) SignIn(c echo.Context) error {
 
 	req := new(models.UserAuthorization)
 
+	// getting the client's IP address
+	IPAddress := c.Request().Header.Get("X-Real-Ip")
+	if IPAddress == "" {
+		IPAddress = c.Request().Header.Get("X-Forwarded-For")
+	}
+	if IPAddress == "" {
+		IPAddress = c.Request().RemoteAddr
+	}
+	req.IPAddress = IPAddress
+	fmt.Printf("IP: %s\n", IPAddress)
+
+	// getting the client's GUID
 	req.GUID = c.QueryParam("GUID")
 
 	if err := c.Bind(req); err != nil {
@@ -168,7 +180,7 @@ func (ac *ApiController) SignIn(c echo.Context) error {
 	cookie.Name = "refreshToken"
 	cookie.Value = tokens.RefreshToken
 	cookie.Path = "/auth"
-	cookie.Expires = time.Now().Add(4 * time.Hour) // TODO: применить переменную из созданной сессии // =expiresAt
+	cookie.Expires = time.Now().Add(4 * time.Hour) // Hard code
 	cookie.HttpOnly = true
 	c.SetCookie(cookie)
 
@@ -182,8 +194,9 @@ func (ac *ApiController) RefreshToken(c echo.Context) error {
 	ctx = ac.logger.WithContext(ctx)
 
 	cookieRequest, err := c.Cookie("refreshToken")
-	if err != nil {
-		return c.JSON(http.StatusUnauthorized, err.Error())
+	fmt.Println(cookieRequest.Value)
+	if err != nil || cookieRequest.Value == "" {
+		return c.JSON(http.StatusUnauthorized, errors.New("invalid refresh token"))
 	}
 
 	tokens, err := ac.UserService.RefreshToken(ctx, cookieRequest.Value)

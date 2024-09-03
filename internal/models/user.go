@@ -16,10 +16,3 @@ type UserLogin struct {
 	Password string `json:"password"     validate:"required,min=6,max=20"`
 	//CreditCard string `json:"credit_card"`
 }
-
-type UserAuthorization struct {
-	ID       int    `json:"id"`
-	GUID     string `json:"guid"`
-	Username string `json:"login"        validate:"required,min=1,max=20"`
-	Password string `json:"password"     validate:"required,min=1,max=20"`
-}

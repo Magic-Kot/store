@@ -4,7 +4,8 @@ import "time"
 
 type Config struct {
 	ServerDeps   ServerDeps   `env:"SERVER" yaml:"server"`
-	PostgresDeps PostgresDeps `env:"REPOSITORY" yaml:"repository"`
+	PostgresDeps PostgresDeps `env:"POSTGRES" yaml:"postgres"`
+	RedisDeps    RedisDeps    `env:"REDIS" yaml:"redis"`
 	LoggerDeps   LoggerDeps   `env:"LOGGER" yaml:"logger"`
 	AuthDeps     AuthDeps     `env:"AUTH" yaml:"auth"`
 }
@@ -18,12 +19,20 @@ type ServerDeps struct {
 type PostgresDeps struct {
 	MaxAttempts int           `env:"MAX_ATTEMPTS" yaml:"maxAttempts" env-default:"3"`
 	Delay       time.Duration `env:"DELAY" yaml:"delay" env-default:"10s"`
-	Username    string        `env:"USERNAMEPOSTGRES"  yaml:"username" env-default:"postgres"`
+	Username    string        `env:"USERNAME_POSTGRES"  yaml:"username" env-default:"postgres"`
 	Password    string        `env:"PASSWORD" yaml:"password" env-default:"postgres"`
 	Host        string        `env:"HOST" yaml:"host" env-default:"127.0.0.1"`
 	Port        string        `env:"PORT" yaml:"port" env-default:"5432"`
 	Database    string        `env:"DATABASE" yaml:"database" env-default:"postgres"`
 	SSLMode     string        `env:"MODELESS" yaml:"sslMode" env-default:"disable"`
+}
+
+type RedisDeps struct {
+	Username string `env:"USERNAME_REDIS"  yaml:"username" env-default:"reds"`
+	Password string `env:"PASSWORD_REDIS" yaml:"password" env-default:""`
+	Host     string `env:"HOST_REDIS" yaml:"host" env-default:"127.0.0.1"`
+	Port     string `env:"PORT_REDIS" yaml:"port" env-default:"6379"`
+	Database string `env:"DATABASE_REDIS" yaml:"database" env-default:"0"`
 }
 
 type LoggerDeps struct {
