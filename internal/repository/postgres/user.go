@@ -13,7 +13,11 @@ import (
 )
 
 var (
-	errUserNotFound = errors.New("postgres: user not found")
+	errUserNotFound = errors.New("user not found")
+	errCreateUser   = errors.New("failed to create user")
+	errGetUser      = errors.New("failed to get user")
+	errUpdateUser   = errors.New("failed to update user")
+	errDeleteUser   = errors.New("failed to delete user")
 )
 
 type UserRepository struct {
@@ -26,43 +30,33 @@ func NewUserRepository(client postg.Client) *UserRepository {
 	}
 }
 
-// GetUser - получение сущности пользователя по ID
+// GetUser - getting a user by id
 func (r *UserRepository) GetUser(ctx context.Context, user *models.User) (*models.User, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Info().Msg("starting the GET request handler")
+	logger.Debug().Msg("accessing Postgres using the 'GetUser' method")
+	logger.Debug().Msgf("postgres: get user by id: %d", user.ID)
 
 	q := `
-		SELECT username, email
+		SELECT username, name, surname, age, email
 		FROM users
 		WHERE id = $1
 	`
 
-	logger.Debug().Msgf("postgres: get user by id: %d\n", user.ID)
-	var username, email string
-
-	// как обычно обращаются к базе?
-	//tx, err := r.client.Begin(ctx)
-	//row := tx.QueryRow(q, id)
-
-	err := r.client.QueryRowx(q, user.ID).Scan(&user.Username, &user.Email)
-
-	logger.Debug().Msgf("postgres returned: login: %s, email: %s, err: %s\n", username, email, err)
+	err := r.client.QueryRowx(q, user.ID).Scan(&user.Username, &user.Name, &user.Surname, &user.Age, &user.Email)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errUserNotFound
 	} else if err != nil {
-		return nil, err
+		return nil, errGetUser
 	}
 
 	return user, nil
 }
 
-// GetAllUser - получение login всех пользователей
-
-// CreateUser - создание нового пользователя
+// CreateUser - creating a new user
 func (r *UserRepository) CreateUser(ctx context.Context, username string, passwordHash string) (int, error) {
 	logger := zerolog.Ctx(ctx)
-	logger.Info().Msg("starting the POST request handler")
+	logger.Debug().Msg("accessing Postgres using the 'CreateUser' method")
 
 	q := `
 		INSERT INTO users 
@@ -75,13 +69,14 @@ func (r *UserRepository) CreateUser(ctx context.Context, username string, passwo
 	var id int
 
 	if err := r.client.QueryRowx(q, username, passwordHash).Scan(&id); err != nil {
-		return 0, errors.New(fmt.Sprint("failed to create user. postgres: ", err))
+		logger.Debug().Msgf("failed to create user. %s", err)
+		return 0, errCreateUser
 	}
 
 	return id, nil
 }
 
-// SignIn - аутентификация пользователя, получение
+// SignIn - user authentication, getting the user's id and password
 func (r *UserRepository) SignIn(ctx context.Context, user *models.UserAuthorization) (*models.UserAuthorization, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Postgres using the 'SignIn' method")
@@ -96,59 +91,17 @@ func (r *UserRepository) SignIn(ctx context.Context, user *models.UserAuthorizat
 	err := r.client.QueryRowx(q, user.Username).Scan(&user.ID, &user.Password)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		logger.Debug().Msgf("user not found. postgres: %s", err)
+		logger.Debug().Msgf("user not found: %s", err)
 		return nil, errUserNotFound
 	} else if err != nil {
-		logger.Debug().Msgf("failed to get user. postgres: %s", err)
-		return nil, err
+		logger.Debug().Msgf("failed to get user: %s", err)
+		return nil, errGetUser
 	}
 
 	return user, nil
 }
 
-// CreateSession - создание сессии пользователя
-func (r *UserRepository) CreateSession(ctx context.Context, value string, arg []interface{}) (int, error) {
-	logger := zerolog.Ctx(ctx)
-	logger.Debug().Msg("accessing Postgres using the 'CreateSession' method")
-	logger.Debug().Msgf("postgres: create session by id: %d, value: %s, arg: %v", arg[0], value, arg[1:])
-
-	q := fmt.Sprintf(`INSERT INTO sessions (%s) VALUES ($1, $2, $3, $4) RETURNING id`, value)
-
-	var id int
-
-	if err := r.client.QueryRowx(q, arg...).Scan(&id); err != nil {
-		logger.Debug().Msgf("failed to create session. postgres: %s", err)
-
-		return 0, errors.New(fmt.Sprint("failed to create session. postgres: ", err))
-	}
-
-	return id, nil
-}
-
-// GetSession - получение сессии по userId пользователя
-func (r *UserRepository) GetSession(ctx context.Context, table string, column string, value string, arg []interface{}) (string, error) {
-	logger := zerolog.Ctx(ctx)
-	logger.Debug().Msg("accessing Postgres using the 'GetSession' method")
-	logger.Debug().Msgf("postgres: get session by table: %s, column: %s, value: %s, arg: %v", table, column, value, arg)
-
-	q := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = $1`, value, table, column)
-
-	var check string
-
-	err := r.client.QueryRowx(q, arg...).Scan(&check)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		logger.Debug().Msgf("session not found. postgres: %s", err)
-		return "", errUserNotFound
-	} else if err != nil {
-		logger.Debug().Msgf("failed to get session. postgres: %s", err)
-		return "", err
-	}
-
-	return check, nil
-}
-
-// UpdateUser - обновление данных в указанной таблице по указанному столбцу
+// UpdateUser - updating the data in the specified table by the specified column
 func (r *UserRepository) UpdateUser(ctx context.Context, table string, column string, value string, arg []interface{}) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Postgres using the 'UpdateUser' method")
@@ -159,22 +112,22 @@ func (r *UserRepository) UpdateUser(ctx context.Context, table string, column st
 	commandTag, err := r.client.Exec(q, arg...)
 
 	if err != nil {
-		logger.Debug().Msgf("failed table updates. postgres: %s", err)
-		return errors.New(fmt.Sprint("failed table updates: ", err))
+		logger.Debug().Msgf("failed table updates: %s", err)
+		return errUpdateUser
 	}
 
 	if str, _ := commandTag.RowsAffected(); str != 1 {
-		logger.Debug().Msgf("user not found. postgres: %s", err)
+		logger.Debug().Msgf("user not found: %s", err)
 		return errUserNotFound
 	}
 
 	return nil
 }
 
-// DeleteUser - удаление пользователя из таблицы users по login
+// DeleteUser - deleting a user from the 'users' table by id
 func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 	logger := zerolog.Ctx(ctx)
-	logger.Info().Msg("starting the DELETE request handler")
+	logger.Debug().Msg("accessing Postgres using the 'DeleteUser' method")
 
 	q := `
 		DELETE FROM users
@@ -182,11 +135,9 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 	`
 
 	commandTag, err := r.client.Exec(q, id)
-	// тут должна быть обработка ошибок:
-	//
 
 	if err != nil {
-		return errors.New(fmt.Sprint("failed to delete user: ", err))
+		return errDeleteUser
 	}
 
 	if str, _ := commandTag.RowsAffected(); str != 1 {

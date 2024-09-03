@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var errAuthorizationUser = errors.New("an unauthorized user")
+var errAuthorizationUser = fmt.Sprint("an unauthorized user")
 
 type ApiController struct {
 	UserService user.UserService
@@ -36,40 +36,45 @@ func NewApiController(userService *user.UserService, logger *zerolog.Logger, val
 	}
 }
 
-// GetUser - получение сущности пользователя по ID
+// GetUser - getting a user by id
 func (ac *ApiController) GetUser(c echo.Context) error {
-	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
+
+	ac.logger.Debug().Msg("starting the handler 'GetUser'")
 
 	req := new(models.User)
 	id := c.Get("id")
 
 	userID, ok := id.(string)
 	if ok != true {
+		ac.logger.Debug().Msgf("invalid id: %v", id)
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
 	}
 
 	userIdInt, err := strconv.Atoi(userID)
 	if err != nil {
+		ac.logger.Debug().Msgf("invalid id: %v", id)
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
 	}
 
 	req.ID = userIdInt
 
-	result, err := ac.UserService.GetUser(c.Request().Context(), req)
+	result, err := ac.UserService.GetUser(ctx, req)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, err.Error())
+		ac.logger.Debug().Msgf("error receiving user data: %v", err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, result)
 }
 
-// SignUp - регистрация нового пользователя
+// SignUp - registering a new user
 func (ac *ApiController) SignUp(c echo.Context) error {
-	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
+
+	ac.logger.Debug().Msg("starting the handler 'SignUp'")
 
 	req := new(models.UserLogin)
 	if err := c.Bind(req); err != nil {
@@ -106,7 +111,7 @@ func (ac *ApiController) SignUp(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	id, err := ac.UserService.SignUp(c.Request().Context(), req.Username, req.Password)
+	id, err := ac.UserService.SignUp(ctx, req.Username, req.Password)
 	if err != nil {
 		// нет обработки ошибки на уникальность логина
 		return c.JSON(http.StatusInternalServerError, err.Error())
@@ -115,11 +120,12 @@ func (ac *ApiController) SignUp(c echo.Context) error {
 	return c.JSON(http.StatusOK, fmt.Sprintf("successfully created user, id: %d", id))
 }
 
-// SignIn - аутентификация пользователя, парсинг Username, Password
+// SignIn - user authentication
 func (ac *ApiController) SignIn(c echo.Context) error {
-	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
+
+	ac.logger.Debug().Msg("starting the handler 'SignIn'")
 
 	req := new(models.UserAuthorization)
 
@@ -187,14 +193,15 @@ func (ac *ApiController) SignIn(c echo.Context) error {
 	return c.JSON(http.StatusOK, tokens.AccessToken)
 }
 
-// RefreshToken - получение новых refresh и access токенов
+// RefreshToken - getting new refresh and access tokens
 func (ac *ApiController) RefreshToken(c echo.Context) error {
-	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
 
+	ac.logger.Debug().Msg("starting the handler 'RefreshToken'")
+
 	cookieRequest, err := c.Cookie("refreshToken")
-	fmt.Println(cookieRequest.Value)
+
 	if err != nil || cookieRequest.Value == "" {
 		return c.JSON(http.StatusUnauthorized, errors.New("invalid refresh token"))
 	}
@@ -218,10 +225,11 @@ func (ac *ApiController) RefreshToken(c echo.Context) error {
 
 // TODO: некорректное расположение кода AuthorizationUser
 
-// AuthorizationUser - авторизация пользователя, парсинг токена
+// AuthorizationUser - user authorization
 func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		header := c.Request().Header.Get("Authorization")
+
 		if header == "" {
 			ac.logger.Debug().Msgf("empty 'Authorization' header: %v", header)
 
@@ -243,7 +251,6 @@ func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFu
 			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
 
-		ac.logger.Debug().Msgf("id: %s", id)
 		c.Set("id", id)
 
 		err = next(c)
@@ -257,11 +264,11 @@ func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFu
 	}
 }
 
-// UpdateUser - обновление данных пользователя по ID
+// UpdateUser - updating user data by ID
 func (ac *ApiController) UpdateUser(c echo.Context) error {
-	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
+
 	ac.logger.Debug().Msgf("starting the handler 'UpdateUser'")
 
 	//req := new(models.User)
@@ -324,11 +331,12 @@ func (ac *ApiController) UpdateUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, fmt.Sprint("successfully updated"))
 }
 
-// DeleteUser - удаление пользователя по ID
+// DeleteUser - deleting a user by id
 func (ac *ApiController) DeleteUser(c echo.Context) error {
-	// TODO: прокинуть логер в контекст echo
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)
+
+	ac.logger.Debug().Msgf("starting the handler 'DeleteUser'")
 
 	id := c.Get("id")
 	userId, ok := id.(string)
@@ -345,7 +353,7 @@ func (ac *ApiController) DeleteUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
 	}
 
-	err = ac.UserService.DeleteUser(c.Request().Context(), userIdInt)
+	err = ac.UserService.DeleteUser(ctx, userIdInt)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, err.Error())
 	}

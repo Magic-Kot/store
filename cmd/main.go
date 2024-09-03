@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/Magic-Kot/store/internal/repository/redis"
 
 	"github.com/Magic-Kot/store/internal/config"
 	"github.com/Magic-Kot/store/internal/controllers"
 	"github.com/Magic-Kot/store/internal/delivery/httpecho"
 	"github.com/Magic-Kot/store/internal/repository/postgres"
+	"github.com/Magic-Kot/store/internal/repository/redis"
 	"github.com/Magic-Kot/store/internal/services/user"
 	"github.com/Magic-Kot/store/pkg/client/postg"
 	"github.com/Magic-Kot/store/pkg/client/reds"
@@ -27,8 +27,8 @@ func main() {
 	//var cfg httpserver.ServerDeps
 	var cfg config.Config
 
-	//err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
-	err := cleanenv.ReadConfig("config.yml", &cfg) // for docker
+	err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
+	//err := cleanenv.ReadConfig("config.yml", &cfg) // for docker
 	//err := cleanenv.ReadConfig("internal/config/config.env", &cfg)
 	//err := cleanenv.ReadEnv(&cfg)
 	if err != nil {

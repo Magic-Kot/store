@@ -3,10 +3,16 @@ package redis
 import (
 	"context"
 	"errors"
-	"fmt"
+	"time"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
-	"time"
+)
+
+var (
+	errCreateSession = errors.New("failed to create session")
+	errGetSession    = errors.New("failed to get session")
+	errDeleteSession = errors.New("failed to delete session")
 )
 
 type AuthRepository struct {
@@ -29,13 +35,13 @@ func (a *AuthRepository) CreateSession(ctx context.Context, key string, value in
 
 	if json.Err() == nil && json.Val() == "" {
 		logger.Debug().Msgf("failed to create session. redis: %s", json.Err())
-		return "", errors.New("failed to create session")
+		return "", errCreateSession
 	}
 
 	return json.String(), nil
 }
 
-// GetSession - получение сессии по userId пользователя
+// GetSession - getting a user session by id
 func (a *AuthRepository) GetSession(ctx context.Context, key string) (string, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'GetSession' method")
@@ -43,21 +49,26 @@ func (a *AuthRepository) GetSession(ctx context.Context, key string) (string, er
 
 	session := a.client.JSONGet(ctx, key)
 
-	fmt.Printf("метод GetSession получил сессию: %s\n", session.String())
-
 	if session.Err() == nil && session.Val() == "" {
 		logger.Debug().Msgf("failed to get session: %s", session.Err())
-		return "", errors.New("failed to get session")
+		return "", errGetSession
 	}
 
 	return session.Result()
 }
 
-// DeleteSession - удаление сессии по userId пользователя
+// DeleteSession - deleting a user session by id
 func (a *AuthRepository) DeleteSession(ctx context.Context, key string) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'DeleteSession' method")
 	logger.Debug().Msgf("redis: delete session by key: %s", key)
+
+	session := a.client.JSONDel(ctx, key, ".")
+
+	if session.Err() != nil || session.Val() == 0 {
+		logger.Debug().Msgf("failed to delete session. val: %d, err: %s", session.Val(), session.Err())
+		return errDeleteSession
+	}
 
 	return nil
 }

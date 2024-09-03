@@ -25,8 +25,6 @@ type UserRepository interface {
 	GetUser(ctx context.Context, user *models.User) (*models.User, error)
 	CreateUser(ctx context.Context, login string, passwordHash string) (int, error)
 	SignIn(ctx context.Context, user *models.UserAuthorization) (*models.UserAuthorization, error)
-	CreateSession(ctx context.Context, value string, arg []interface{}) (int, error)
-	GetSession(ctx context.Context, table string, column string, value string, arg []interface{}) (string, error)
 	UpdateUser(ctx context.Context, table string, column string, value string, arg []interface{}) error
 	DeleteUser(ctx context.Context, id int) error
 }
@@ -34,6 +32,7 @@ type UserRepository interface {
 type AuthRepository interface {
 	CreateSession(ctx context.Context, key string, value interface{}) (string, error)
 	GetSession(ctx context.Context, key string) (string, error)
+	DeleteSession(ctx context.Context, key string) error
 }
 
 type UserService struct {
@@ -50,8 +49,11 @@ func NewUserService(userRepository UserRepository, authRepository AuthRepository
 	}
 }
 
-// GetUser - получение сущности пользователя по ID
+// GetUser - getting a user by id
 func (s *UserService) GetUser(ctx context.Context, user *models.User) (*models.User, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Debug().Msg("starting the 'GetUser' service")
+
 	user, err := s.UserRepository.GetUser(ctx, user)
 	if err != nil {
 		return nil, err
@@ -60,8 +62,11 @@ func (s *UserService) GetUser(ctx context.Context, user *models.User) (*models.U
 	return user, nil
 }
 
-// SignUp - регистрация нового пользователя
+// SignUp - registering a new user
 func (s *UserService) SignUp(ctx context.Context, login string, password string) (int, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Debug().Msg("starting the 'SignUp' service")
+
 	passwordHash := hash.GenerateHash(password)
 
 	id, err := s.UserRepository.CreateUser(ctx, login, passwordHash)
@@ -72,7 +77,7 @@ func (s *UserService) SignUp(ctx context.Context, login string, password string)
 	return id, nil
 }
 
-// SignIn - аутентификация пользователя, получение токенов
+// SignIn - user authentication
 func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization) (models.Tokens, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("starting the 'SignIn' service")
@@ -119,7 +124,7 @@ func (s *UserService) SignIn(ctx context.Context, user *models.UserAuthorization
 	return res, nil
 }
 
-// RefreshToken - получение новых refresh и access токенов
+// RefreshToken - getting new refresh and access tokens
 func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.Tokens, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("starting the 'RefreshToken' service")
@@ -182,10 +187,10 @@ func (s *UserService) RefreshToken(ctx context.Context, refresh string) (models.
 	return res, nil
 }
 
-// UpdateUser - обновление данных пользователя по id
+// UpdateUser - updating user data by ID
 func (s *UserService) UpdateUser(ctx context.Context, user *models.User) error {
 	logger := zerolog.Ctx(ctx)
-	logger.Debug().Msg("starting the service 'UpdateUser'")
+	logger.Debug().Msg("starting the 'UpdateUser' service")
 
 	value := make([]string, 0)
 	arg := make([]interface{}, 0)
@@ -204,10 +209,9 @@ func (s *UserService) UpdateUser(ctx context.Context, user *models.User) error {
 
 	for i := 2; i < values.NumField(); i++ {
 		if values.Field(i).String() != "" {
-			fmt.Println(types.Field(i).Name, values.Field(i))
-
 			value = append(value, fmt.Sprintf("%s=$%d", types.Field(i).Name, argId))
 			arg = append(arg, values.Field(i).String())
+
 			argId++
 		}
 	}
@@ -222,9 +226,17 @@ func (s *UserService) UpdateUser(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-// DeleteUser - удаление пользователя по id
+// DeleteUser - deleting a user by id
 func (s *UserService) DeleteUser(ctx context.Context, id int) error {
+	logger := zerolog.Ctx(ctx)
+	logger.Debug().Msg("starting the 'DeleteUser' service")
+
 	err := s.UserRepository.DeleteUser(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	err = s.AuthRepository.DeleteSession(ctx, strconv.Itoa(id))
 	if err != nil {
 		return err
 	}
