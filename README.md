@@ -26,3 +26,12 @@
 | `/delete` | DELETE | Header: `Authorization: token`                                                                                                         | Deleting the user                     |
 
    The login must contain from 4 to 20 characters.
+
+
+3) Referral link. Request Example:  
+   `host:port`
+
+| Path               | Method | Request                                                   | Description                 |
+|--------------------|--------|-----------------------------------------------------------|-----------------------------|
+| `/bonuses/friends` | POST   | Header: `Authorization: token`<br/>Body: `{"url": "url"}` | Getting a referral link     |
+| `/baf/:url`        | GET    |                                                           | Clicking on a referral link |

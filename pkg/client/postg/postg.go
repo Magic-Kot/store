@@ -16,8 +16,8 @@ var errConnectingPostgres = errors.New("error connecting to postgres")
 
 type Client interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
-	Query(query string, args ...interface{}) (*sql.Rows, error)
 	QueryRowx(query string, args ...interface{}) *sqlx.Row
+	Begin() (*sql.Tx, error)
 }
 
 type ConfigDeps struct {

@@ -14,11 +14,11 @@ func SetUserRoutes(e *echo.Echo, apiController *controllers.ApiController) {
 		auth.POST("/refresh", apiController.RefreshToken)
 	}
 
-	r := e.Group("/user", apiController.AuthorizationUser)
+	user := e.Group("/user", apiController.AuthorizationUser)
 	//r := e.Group("/user", middleware.AuthorizationUser)
 	{
-		r.GET("/get", apiController.GetUser)
-		r.PUT("/update", apiController.UpdateUser)
-		r.DELETE("/delete", apiController.DeleteUser)
+		user.GET("/get", apiController.GetUser)
+		user.PUT("/update", apiController.UpdateUser)
+		user.DELETE("/delete", apiController.DeleteUser)
 	}
 }

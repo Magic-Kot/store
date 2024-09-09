@@ -8,7 +8,7 @@ services:
       - postgresql
       - redis
     ports:
-      - "127.0.0.1:8090:8090"
+      - "8080:8080"
     networks:
       - ps
 
@@ -17,7 +17,7 @@ services:
     container_name: ps-psql
     restart: always
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 12345
@@ -32,7 +32,7 @@ services:
     container_name: rs-redis
     restart: always
     ports:
-      - "127.0.0.1:6379:6379"
+      - "6379:6379"
     volumes:
       - ./data:/data
     networks:

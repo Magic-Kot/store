@@ -28,16 +28,30 @@ CREATE TABLE IF NOT EXISTS users_cart
 
 CREATE TABLE IF NOT EXISTS products
 (
-    id          SERIAL     PRIMARY KEY,
-    product     VARCHAR    NOT NULL        UNIQUE,
-    description VARCHAR    NOT NULL
+    id             SERIAL     PRIMARY KEY,
+    product        VARCHAR    NOT NULL        UNIQUE,
+    description    VARCHAR    NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS cart_products
 (
-    id          SERIAL     PRIMARY KEY,
-    cart_id     INTEGER references cart (id) on delete cascade    NOT NULL,
-    product_id     INTEGER references products (id) on delete cascade    NOT NULL
+    id            SERIAL     PRIMARY KEY,
+    cart_id       INTEGER references cart (id) on delete cascade    NOT NULL,
+    product_id    INTEGER references products (id) on delete cascade    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS referral
+(
+    id           SERIAL     PRIMARY KEY,
+    short_url    VARCHAR    NOT NULL        UNIQUE,
+    counter      INTEGER    DEFAULT(0)
+);
+
+CREATE TABLE IF NOT EXISTS users_referral
+(
+    id             SERIAL     PRIMARY KEY,
+    user_id        INTEGER references users (id) on delete cascade    NOT NULL,
+    referral_id    INTEGER references referral (id) on delete cascade    NOT NULL
 );
 -- +goose StatementEnd
 

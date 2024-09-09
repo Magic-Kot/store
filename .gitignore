@@ -1,5 +1,4 @@
 *.exe
-*.env
+private.env
 .idea/
 data/
-old_client.go

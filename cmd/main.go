@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Magic-Kot/store/internal/config"
 	"github.com/Magic-Kot/store/internal/controllers"
 	"github.com/Magic-Kot/store/internal/delivery/httpecho"
 	"github.com/Magic-Kot/store/internal/repository/postgres"
 	"github.com/Magic-Kot/store/internal/repository/redis"
+	"github.com/Magic-Kot/store/internal/services/referral"
 	"github.com/Magic-Kot/store/internal/services/user"
 	"github.com/Magic-Kot/store/pkg/client/postg"
 	"github.com/Magic-Kot/store/pkg/client/reds"
@@ -79,10 +79,7 @@ func main() {
 		logger.Fatal().Err(err).Msgf("NewClient: %s", err)
 	}
 
-	// create user repository
-	db := postgres.NewUserRepository(pool)
-
-	// create client Redis
+	// create client Redis for refresh tokens
 	redisCfg := reds.ConfigDeps{
 		Username: cfg.RedisDeps.Username,
 		Password: cfg.RedisDeps.Password,
@@ -93,11 +90,22 @@ func main() {
 
 	clientRedis, err := reds.NewClientRedis(ctx, &redisCfg)
 	if err != nil {
-		logger.Fatal().Err(err).Msgf("redis: %s", err)
+		logger.Fatal().Err(err).Msgf("redis refresh tokens: %s", err)
 	}
 
-	// create auth repository
-	rds := redis.NewAuthRepository(clientRedis)
+	// create client Redis for referral urls
+	//redisUrl := reds.ConfigDeps{
+	//	Username: "reds",
+	//	Password: "",
+	//	Host:     "127.0.0.1",
+	//	Port:     "6385",
+	//	Database: "0",
+	//}
+	//
+	//clientRedisURL, err := reds.NewClientRedis(ctx, &redisUrl)
+	//if err != nil {
+	//	logger.Fatal().Err(err).Msgf("redis URL: %s", err)
+	//}
 
 	// create tokenJWT
 	tokenCfg := jwt_token.TokenJWTDeps{
@@ -111,22 +119,27 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to init tokenJWT")
 	}
 
-	// create service
-	service := user.NewUserService(db, rds, tokenJWT)
-
 	// create validator
 	validate := validator.New()
 
-	// create controller
-	contr := controllers.NewApiController(service, logger, validate, tokenJWT)
+	// User
+	userRepository := postgres.NewUserRepository(pool)                                      // create user repository
+	rds := redis.NewAuthRepository(clientRedis)                                             // create auth repository
+	userService := user.NewUserService(userRepository, rds, tokenJWT)                       // create service
+	userController := controllers.NewApiController(userService, logger, validate, tokenJWT) // create controller
+	httpecho.SetUserRoutes(server.Server(), userController)                                 // set routes
 
-	// set routes
-	httpecho.SetUserRoutes(server.Server(), contr)
+	// Referral
+	referralRepository := postgres.NewReferralRepository(pool)
+	redisURL := redis.NewReferralRepository(clientRedis)                                          // clientRedisURL
+	referralService := referral.NewReferralService(referralRepository, redisURL)                  //
+	referralController := controllers.NewApiReferralController(referralService, logger, validate) //
+	httpecho.SetReferralRoutes(server.Server(), userController, referralController)
 
 	// start server
 	logger.Info().Msg("starting server")
 
 	if err := server.Start(); err != nil {
-		logger.Fatal().Msg(fmt.Sprint("serverStart:", err))
+		logger.Fatal().Msgf("serverStart: %v", err)
 	}
 }

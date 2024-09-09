@@ -16,16 +16,16 @@ type ConfigDeps struct {
 	Database string
 }
 
-// NewClientRedis создает клиента, подключаемый к базе данных по URL: reds://reds:12345@127.0.0.1:6379/reds
+// NewClientRedis - создает клиента, подключаемый к базе данных по URL: reds://reds:12345@127.0.0.1:6379/reds
 func NewClientRedis(ctx context.Context, cfg *ConfigDeps) (*redis.Client, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("creating a Redis client")
 	logger.Debug().Msgf("reds config: %+v", cfg)
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port), //"127.0.0.1:6379"
-		Password: "",                                       // no password set
-		DB:       0,                                        // use default DB
+		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
+		Password: "",
+		DB:       0,
 	})
 
 	_, err := rdb.Ping(ctx).Result()
