@@ -12,7 +12,10 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.6.1
 	github.com/rs/zerolog v1.33.0
+	github.com/speakeasy-api/goose/v3 v3.0.0-20230109122314-4c5791ef40fd
+	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.22.0
+	golang.org/x/sync v0.8.0
 )
 
 require (
@@ -26,6 +29,7 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

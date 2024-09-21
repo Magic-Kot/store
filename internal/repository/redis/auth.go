@@ -15,16 +15,16 @@ var (
 	errDeleteSession = errors.New("failed to delete session")
 )
 
-type AuthRepository struct {
+type AuthRedisRepository struct {
 	client redis.Client
 }
 
-func NewAuthRepository(client *redis.Client) *AuthRepository {
-	return &AuthRepository{client: *client}
+func NewAuthRepository(client *redis.Client) *AuthRedisRepository {
+	return &AuthRedisRepository{client: *client}
 }
 
 // CreateSession - creating a user session or updating it
-func (a *AuthRepository) CreateSession(ctx context.Context, key string, value interface{}) (string, error) {
+func (a *AuthRedisRepository) CreateSession(ctx context.Context, key string, value interface{}) (string, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'CreateSession' method")
 	logger.Debug().Msgf("redis: create session by key: %s, value: %s", key, value)
@@ -42,7 +42,7 @@ func (a *AuthRepository) CreateSession(ctx context.Context, key string, value in
 }
 
 // GetSession - getting a user session by id
-func (a *AuthRepository) GetSession(ctx context.Context, key string) (string, error) {
+func (a *AuthRedisRepository) GetSession(ctx context.Context, key string) (string, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'GetSession' method")
 	logger.Debug().Msgf("redis: get session by key: %s", key)
@@ -58,7 +58,7 @@ func (a *AuthRepository) GetSession(ctx context.Context, key string) (string, er
 }
 
 // DeleteSession - deleting a user session by id
-func (a *AuthRepository) DeleteSession(ctx context.Context, key string) error {
+func (a *AuthRedisRepository) DeleteSession(ctx context.Context, key string) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'DeleteSession' method")
 	logger.Debug().Msgf("redis: delete session by key: %s", key)

@@ -1,18 +1,37 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
+
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
-// AuthorizationUser - авторизация пользователя, парсинг токена
-func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFunc {
+var errAuthorizationUser = fmt.Sprint("an unauthorized user")
+
+type Middleware struct {
+	logger *zerolog.Logger
+	token  *jwt_token.Manager
+}
+
+func NewMiddleware(logger *zerolog.Logger, token *jwt_token.Manager) *Middleware {
+	return &Middleware{
+		logger: logger,
+		token:  token,
+	}
+}
+
+// AuthorizationUser - user authorization
+func (m *Middleware) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		header := c.Request().Header.Get("Authorization")
+
 		if header == "" {
-			ac.logger.Debug().Msgf("empty 'Authorization' header: %v", header)
+			m.logger.Debug().Msgf("empty 'Authorization' header: %v", header)
 
 			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
@@ -20,24 +39,23 @@ func (ac *ApiController) AuthorizationUser(next echo.HandlerFunc) echo.HandlerFu
 		headerParts := strings.Split(header, " ")
 
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-			ac.logger.Debug().Msgf("invalid 'Authorization' header: %v", header)
+			m.logger.Debug().Msgf("invalid 'Authorization' header: %v", header)
 
 			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
 
-		id, err := ac.token.ParseToken(headerParts[1])
+		id, err := m.token.ParseToken(headerParts[1])
 		if err != nil {
-			ac.logger.Debug().Msgf("invalid authorization token: %v", err)
+			m.logger.Debug().Msgf("invalid authorization token: %v", err)
 
 			return c.JSON(http.StatusUnauthorized, errAuthorizationUser)
 		}
 
-		ac.logger.Debug().Msgf("id: %s", id)
 		c.Set("id", id)
 
 		err = next(c)
 		if err != nil {
-			ac.logger.Warn().Msgf("next HandlerFunc: %v", err)
+			m.logger.Warn().Msgf("next HandlerFunc: %v", err)
 
 			return c.JSON(http.StatusBadRequest, err.Error())
 		}

@@ -2,20 +2,15 @@ package httpecho
 
 import (
 	"github.com/Magic-Kot/store/internal/controllers"
+	"github.com/Magic-Kot/store/internal/middleware"
 
 	"github.com/labstack/echo/v4"
 )
 
-func SetUserRoutes(e *echo.Echo, apiController *controllers.ApiController) {
-	auth := e.Group("/auth")
-	{
-		auth.POST("/sign-up", apiController.SignUp)
-		auth.POST("/sign-in", apiController.SignIn)
-		auth.POST("/refresh", apiController.RefreshToken)
-	}
+func SetUserRoutes(e *echo.Echo, apiController *controllers.ApiController, middleware *middleware.Middleware) {
+	e.POST("/sign-up", apiController.SignUp)
 
-	user := e.Group("/user", apiController.AuthorizationUser)
-	//r := e.Group("/user", middleware.AuthorizationUser)
+	user := e.Group("/user", middleware.AuthorizationUser)
 	{
 		user.GET("/get", apiController.GetUser)
 		user.PUT("/update", apiController.UpdateUser)

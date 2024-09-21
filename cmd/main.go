@@ -2,33 +2,42 @@ package main
 
 import (
 	"context"
+	"embed"
+	"time"
 
 	"github.com/Magic-Kot/store/internal/config"
 	"github.com/Magic-Kot/store/internal/controllers"
 	"github.com/Magic-Kot/store/internal/delivery/httpecho"
+	"github.com/Magic-Kot/store/internal/middleware"
 	"github.com/Magic-Kot/store/internal/repository/postgres"
 	"github.com/Magic-Kot/store/internal/repository/redis"
+	"github.com/Magic-Kot/store/internal/services/auth"
 	"github.com/Magic-Kot/store/internal/services/referral"
 	"github.com/Magic-Kot/store/internal/services/user"
 	"github.com/Magic-Kot/store/pkg/client/postg"
 	"github.com/Magic-Kot/store/pkg/client/reds"
 	"github.com/Magic-Kot/store/pkg/httpserver"
 	"github.com/Magic-Kot/store/pkg/logging"
+	"github.com/Magic-Kot/store/pkg/ossignal"
 	"github.com/Magic-Kot/store/pkg/utils/jwt_token"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/ilyakaznacheev/cleanenv"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/speakeasy-api/goose/v3"
+	"golang.org/x/sync/errgroup"
 )
+
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
 
 func main() {
 	// read config
-	//var cfg httpserver.ServerDeps
 	var cfg config.Config
 
-	err := cleanenv.ReadConfig("internal/config/config.yml", &cfg)
-	//err := cleanenv.ReadConfig("config.yml", &cfg) // for docker
+	err := cleanenv.ReadConfig("internal/config/config.yml", &cfg) // Local: internal/config/config.yml Docker: config.yml
 	//err := cleanenv.ReadConfig("internal/config/config.env", &cfg)
 	//err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
@@ -57,7 +66,6 @@ func main() {
 		Host:    cfg.ServerDeps.Host,
 		Port:    cfg.ServerDeps.Port,
 		Timeout: cfg.ServerDeps.Timeout,
-		//Logger:  logger,
 	}
 
 	server := httpserver.NewServer(&serv)
@@ -79,6 +87,17 @@ func main() {
 		logger.Fatal().Err(err).Msgf("NewClient: %s", err)
 	}
 
+	// migrations
+	goose.SetBaseFS(embedMigrations)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		panic(err)
+	}
+
+	if err := goose.Up(pool, "migrations"); err != nil {
+		panic(err)
+	}
+
 	// create client Redis for refresh tokens
 	redisCfg := reds.ConfigDeps{
 		Username: cfg.RedisDeps.Username,
@@ -92,20 +111,6 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("redis refresh tokens: %s", err)
 	}
-
-	// create client Redis for referral urls
-	//redisUrl := reds.ConfigDeps{
-	//	Username: "reds",
-	//	Password: "",
-	//	Host:     "127.0.0.1",
-	//	Port:     "6385",
-	//	Database: "0",
-	//}
-	//
-	//clientRedisURL, err := reds.NewClientRedis(ctx, &redisUrl)
-	//if err != nil {
-	//	logger.Fatal().Err(err).Msgf("redis URL: %s", err)
-	//}
 
 	// create tokenJWT
 	tokenCfg := jwt_token.TokenJWTDeps{
@@ -122,24 +127,68 @@ func main() {
 	// create validator
 	validate := validator.New()
 
+	rds := redis.NewAuthRepository(clientRedis)
+	middlewareUser := middleware.NewMiddleware(logger, tokenJWT)
+
+	// Auth
+	authRepository := postgres.NewAuthPostgresRepository(pool)
+	authService := auth.NewAuthService(authRepository, rds, tokenJWT)
+	authController := controllers.NewApiAuthController(authService, logger, validate)
+	httpecho.SetAuthRoutes(server.Server(), authController)
+
 	// User
-	userRepository := postgres.NewUserRepository(pool)                                      // create user repository
-	rds := redis.NewAuthRepository(clientRedis)                                             // create auth repository
-	userService := user.NewUserService(userRepository, rds, tokenJWT)                       // create service
-	userController := controllers.NewApiController(userService, logger, validate, tokenJWT) // create controller
-	httpecho.SetUserRoutes(server.Server(), userController)                                 // set routes
+	userRepository := postgres.NewUserRepository(pool)
+	userService := user.NewUserService(userRepository, rds)
+	userController := controllers.NewApiController(userService, logger, validate)
+	httpecho.SetUserRoutes(server.Server(), userController, middlewareUser)
 
 	// Referral
 	referralRepository := postgres.NewReferralRepository(pool)
-	redisURL := redis.NewReferralRepository(clientRedis)                                          // clientRedisURL
-	referralService := referral.NewReferralService(referralRepository, redisURL)                  //
-	referralController := controllers.NewApiReferralController(referralService, logger, validate) //
-	httpecho.SetReferralRoutes(server.Server(), userController, referralController)
+	redisURL := redis.NewReferralRepository(clientRedis)
+	referralService := referral.NewReferralService(referralRepository, redisURL)
+	referralController := controllers.NewApiReferralController(referralService, logger, validate)
+	httpecho.SetReferralRoutes(server.Server(), referralController, middlewareUser)
+
+	runner, ctx := errgroup.WithContext(ctx)
 
 	// start server
 	logger.Info().Msg("starting server")
+	runner.Go(func() error {
+		if err := server.Start(); err != nil {
+			logger.Fatal().Msgf("%v", err)
+		}
 
-	if err := server.Start(); err != nil {
-		logger.Fatal().Msgf("serverStart: %v", err)
+		return nil
+	})
+
+	runner.Go(func() error {
+		if err := ossignal.DefaultSignalWaiter(ctx); err != nil {
+			return errors.Wrap(err, "waiting os signal")
+		}
+
+		return nil
+	})
+
+	runner.Go(func() error {
+		<-ctx.Done()
+
+		ctxSignal, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		defer cancel()
+
+		if err := server.Shutdown(ctxSignal); err != nil {
+			logger.Error().Err(err).Msg("shutdown http server")
+		}
+
+		return nil
+	})
+
+	if err := runner.Wait(); err != nil {
+		switch {
+		case ossignal.IsExitSignal(err):
+			logger.Info().Msg("exited by exit signal")
+		default:
+			logger.Fatal().Msgf("exiting with error: %v", err)
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -46,6 +47,6 @@ func (s Server) Server() *echo.Echo {
 	return s.serv
 }
 
-//func (s Server) Logger() *zerolog.Logger {
-//	return s.logger
-//}
+func (s Server) Shutdown(ctx context.Context) error {
+	return s.serv.Shutdown(ctx)
+}

@@ -78,7 +78,7 @@ func (rs *ReferralService) CreateReferral(ctx context.Context, body *models.Requ
 	}
 
 	//resp.CustomShort = os.Getenv("DOMAIN") + "/" + id
-	resp.CustomShort = "https://siriusfuture.ru/baf/" + id
+	resp.CustomShort = "localhost/baf/" + id
 
 	return resp, nil
 }
