@@ -13,7 +13,7 @@ func SetUserRoutes(e *echo.Echo, apiController *controllers.ApiController, middl
 	user := e.Group("/user", middleware.AuthorizationUser)
 	{
 		user.GET("/get", apiController.GetUser)
-		user.PUT("/update", apiController.UpdateUser)
+		user.PATCH("/update", apiController.UpdateUser)
 		user.DELETE("/delete", apiController.DeleteUser)
 	}
 }

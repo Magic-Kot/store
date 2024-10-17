@@ -27,7 +27,7 @@ When logging in, the Login and password must contain from 1 to 20 characters.
 | Path      | Method | Request                                                                                                                                | Description                           |
 |-----------|--------|----------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------|
 | `/get`    | GET    | Header: `Authorization: token`                                                                                                         | Getting user data                     |
-| `/update` | PUT    | Header: `Authorization: token`<br/>Body: `{"login": "username", "name": "name", "surname": "surname", "age": "age", "email": "email"}` | Changing the login or other user data |
+| `/update` | PATCH  | Header: `Authorization: token`<br/>Body: `{"login": "username", "name": "name", "surname": "surname", "age": "age", "email": "email"}` | Changing the login or other user data |
 | `/delete` | DELETE | Header: `Authorization: token`                                                                                                         | Deleting the user                     |
 
 The login must contain from 4 to 20 characters.
