@@ -1,4 +1,12 @@
-*.exe
-private.env
-.idea/
-data/
+# IDE
+.idea
+.vscode
+
+# Config
+.env
+
+# Test coverage
+*.out
+
+# Generated
+*.gen.go
