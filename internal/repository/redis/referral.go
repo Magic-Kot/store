@@ -23,7 +23,6 @@ func NewReferralRepository(client *redis.Client) *ReferralRepository {
 	return &ReferralRepository{client: *client}
 }
 
-// CreateReferral - saving a new referral link
 func (r *ReferralRepository) CreateReferral(ctx context.Context, key string, value interface{}, expiration time.Duration) (string, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'CreateReferral' method")
@@ -41,7 +40,6 @@ func (r *ReferralRepository) CreateReferral(ctx context.Context, key string, val
 	return json.Val(), nil
 }
 
-// GetReferral - getting a referral link by id
 func (r *ReferralRepository) GetReferral(ctx context.Context, key string) (string, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("accessing Redis using the 'GetReferral' method")
