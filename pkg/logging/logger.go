@@ -1,18 +1,18 @@
 package logging
 
 import (
-	"github.com/pkg/errors"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
 type LoggerDeps struct {
-	LogLevel string
+	Level string
 }
 
 func NewLogger(cfg *LoggerDeps) (*zerolog.Logger, error) {
-	logLevel, err := zerolog.ParseLevel(cfg.LogLevel)
+	logLevel, err := zerolog.ParseLevel(cfg.Level)
 	if err != nil {
 		return nil, errors.Wrap(err, "parse log level")
 	}
