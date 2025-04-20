@@ -40,17 +40,15 @@ type App struct {
 	privateHTTPServer *http.Server
 	authRepository    *persistence.AuthPostgresRepository
 	authService       service.Auth
-	//portalService     integration.PortalService
-	//portalClient      portal.Client
-	postgresClient *sqlx.DB
-	//dictService       service.Dictionary
-	//dictFilesSource   persistence.DictionaryFiles
-	//dictSource        persistence.Dictionary
+	postgresClient    *sqlx.DB
 
 	redisClient   *redis.Client
 	refreshTokens persistence.RefreshTokens
 
 	clock clock.Clock
+
+	dbUser      persistence.DBUser
+	userService *service.User
 }
 
 func New(name, version string, cfg config.Config) *App {
@@ -122,12 +120,9 @@ func (app *App) Run() error {
 		app.authRepository,
 	)
 
-	//validate := validator.New()
-
-	// User
-	//userRepository := postgres.NewUserRepository(app.postgresClient)
-	//userService := user.NewUserService(userRepository, rds)
-	//userController := rest.NewApiController(userService, logger, validate)
+	// user
+	app.dbUser = persistence.NewDBUser(app.postgresClient)
+	app.userService = service.NewUser(app.dbUser)
 
 	// Referral
 	//referralRepository := postgres.NewReferralRepository(app.postgresClient)
@@ -189,7 +184,7 @@ func (app *App) newHTTPServer(ctx context.Context) *http.Server {
 		middlewarex.Recovery,
 	)
 
-	restServer := rest.NewServer(app.authService)
+	restServer := rest.NewServer(app.authService, app.userService)
 
 	authMiddleware := rest.NewBearerAuth(middlewarex.NewHeaderAuthorizationBearerTokenFinder(), component.NewAccessTokenParser(app.cfg.JWT.PublicKey))
 	rest.RegisterRoutes(router, restServer, authMiddleware)

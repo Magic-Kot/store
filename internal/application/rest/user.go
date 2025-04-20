@@ -27,38 +27,6 @@ func NewApiController(userService *user.UserService, logger *zerolog.Logger, val
 	}
 }
 
-func (ac *ApiController) GetUser(c echo.Context) error {
-	ctx := c.Request().Context()
-	ctx = ac.logger.WithContext(ctx)
-
-	ac.logger.Debug().Msg("starting the handler 'GetUser'")
-
-	req := new(models.User)
-	id := c.Get("id")
-
-	userID, ok := id.(string)
-	if ok != true {
-		ac.logger.Debug().Msgf("invalid id: %v", id)
-		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
-	}
-
-	userIdInt, err := strconv.Atoi(userID)
-	if err != nil {
-		ac.logger.Debug().Msgf("invalid id: %v", id)
-		return c.JSON(http.StatusBadRequest, fmt.Sprint("invalid id"))
-	}
-
-	req.ID = userIdInt
-
-	result, err := ac.UserService.GetUser(ctx, req)
-	if err != nil {
-		ac.logger.Debug().Msgf("error receiving user data: %v", err)
-		return c.JSON(http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, result)
-}
-
 func (ac *ApiController) UpdateUser(c echo.Context) error {
 	ctx := c.Request().Context()
 	ctx = ac.logger.WithContext(ctx)

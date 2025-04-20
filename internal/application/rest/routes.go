@@ -18,19 +18,19 @@ func RegisterRoutes(
 		r.Post("/logout", handler(server.PostAuthV1Logout))
 	})
 
-	//r.Route("/user/v1", func(r chi.Router) {
-	//	r.Use(bearerAuth.JWTMiddleware())
-	//	r.Get("/get", handler(server.GetUser))
-	//	r.Patch("/update", handler(server.UpdateUser))
-	//	r.Delete("/delete", handler(server.DeleteUser))
-	//})
-	//
-	//r.Route("/bonuses/v1", func(r chi.Router) {
-	//	r.Use(bearerAuth.JWTMiddleware())
-	//	r.Post("/friends", handler(server.CreateReferral))
-	//	r.Get("/counter", handler(server.CounterReferral))
-	//})
-	//
+	r.Route("/user/v1", func(r chi.Router) {
+		r.Use(bearerAuth.JWTMiddleware())
+		r.Get("/info", handler(server.GetUserV1Info))
+		//	r.Patch("/update", handler(server.UpdateUser))
+		//	r.Delete("/delete", handler(server.DeleteUser))
+	})
+
+	r.Route("/bonuses/v1", func(r chi.Router) {
+		r.Use(bearerAuth.JWTMiddleware())
+		//	r.Post("/friends", handler(server.CreateReferral))
+		//	r.Get("/counter", handler(server.CounterReferral))
+	})
+
 	//r.Get("/baf/:url", handler(server.GetReferral))
 }
 
