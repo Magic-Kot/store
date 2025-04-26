@@ -22,15 +22,16 @@ const (
 )
 
 const (
-	InternalServerErrorMessage   = "internal server error"
-	ValidationErrorMessage       = "validation error"
-	NotFoundErrorMessage         = "not found"
-	ForbiddenErrorMessage        = "forbidden"
-	RefreshTokenInvalidMessage   = "refresh token invalid"
-	RefreshTokenExpiredMessage   = "refresh token expired"
-	AccessTokenInvalidMessage    = failure.ErrorCode("access_token_invalid")
-	AccessTokenExpiredMessage    = failure.ErrorCode("access_token_expired")
-	ErrorFromRemoteServerMessage = failure.ErrorCode("error_from_remote_server")
-	ReportNotFoundMessage        = failure.ErrorCode("report_not_found")
-	UserNotFoundMessage          = failure.ErrorCode("user_not_found")
+	InternalServerErrorMessage     = "internal server error"
+	ValidationErrorMessage         = "validation error"
+	NotFoundErrorMessage           = "not found"
+	ForbiddenErrorMessage          = "forbidden"
+	RefreshTokenInvalidMessage     = "refresh token invalid"
+	RefreshTokenExpiredMessage     = "refresh token expired"
+	AccessTokenInvalidMessage      = failure.ErrorCode("access_token_invalid")
+	AccessTokenExpiredMessage      = failure.ErrorCode("access_token_expired")
+	ErrorFromRemoteServerMessage   = failure.ErrorCode("error_from_remote_server")
+	ReportNotFoundMessage          = failure.ErrorCode("report_not_found")
+	UserNotFoundMessage            = failure.ErrorCode("user_not_found")
+	PushTokenAlreadyDeletedMessage = "Push token already deleted"
 )

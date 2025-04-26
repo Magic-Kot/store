@@ -17,6 +17,7 @@ type authService interface {
 type userService interface {
 	UserInfo(context.Context, value.PersonID) (entity.UserData, error)
 	UpdateUser(context.Context, value.PersonID, entity.UserData) error
+	RemoveUser(context.Context, value.PersonID) error
 }
 
 type Server struct {

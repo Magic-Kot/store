@@ -26,16 +26,8 @@ func RegisterRoutes(
 	r.Route("/settings/v1", func(r chi.Router) {
 		r.Use(bearerAuth.JWTMiddleware())
 		r.Patch("/user", handler(server.PatchSettingsV1User))
-		//	r.Delete("/user", handler(server.DeleteSettingsV1User))
+		r.Delete("/user", handler(server.DeleteSettingsV1User))
 	})
-
-	r.Route("/bonuses/v1", func(r chi.Router) {
-		r.Use(bearerAuth.JWTMiddleware())
-		//	r.Post("/friends", handler(server.CreateReferral))
-		//	r.Get("/counter", handler(server.CounterReferral))
-	})
-
-	//r.Get("/baf/:url", handler(server.GetReferral))
 }
 
 func handler(f func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {
