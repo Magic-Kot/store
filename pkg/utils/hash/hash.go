@@ -5,13 +5,15 @@ import (
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/Magic-Kot/store/internal/domain/value"
 )
 
 const salt = "qwertyuiop0sdfghjklzxcvbnm123056QWE8TYUIOPASDFGHJKLZXCVBNM"
 
-func GenerateHash(str string) string {
+func GenerateHash(password value.Password) string {
 	hash := sha256.New()
-	hash.Write([]byte(str))
+	hash.Write([]byte(password))
 
 	return fmt.Sprintf("%x", hash.Sum([]byte(salt)))
 }
