@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"github.com/Magic-Kot/store/pkg/masker"
 	"net"
 	"net/http"
 	"os/signal"
@@ -27,6 +26,7 @@ import (
 	"github.com/Magic-Kot/store/internal/domain/service"
 	"github.com/Magic-Kot/store/internal/infrastructure/persistence"
 	"github.com/Magic-Kot/store/pkg/logging"
+	"github.com/Magic-Kot/store/pkg/masker"
 	"github.com/Magic-Kot/store/pkg/middlewarex"
 )
 
@@ -123,12 +123,6 @@ func (app *App) Run() error {
 	// user
 	app.dbUser = persistence.NewDBUser(app.postgresClient)
 	app.userService = service.NewUser(app.dbUser)
-
-	// Referral
-	//referralRepository := postgres.NewReferralRepository(app.postgresClient)
-	//redisURL := redis.NewReferralRepository(app.redisClient)
-	//referralService := referral.NewReferralService(referralRepository, redisURL)
-	//referralController := rest.NewApiReferralController(referralService, logger, validate)
 
 	app.runHTTPServer(ctx, g)
 
