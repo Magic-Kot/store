@@ -21,8 +21,12 @@ func RegisterRoutes(
 	r.Route("/user/v1", func(r chi.Router) {
 		r.Use(bearerAuth.JWTMiddleware())
 		r.Get("/info", handler(server.GetUserV1Info))
-		//	r.Patch("/update", handler(server.UpdateUser))
-		//	r.Delete("/delete", handler(server.DeleteUser))
+	})
+
+	r.Route("/settings/v1", func(r chi.Router) {
+		r.Use(bearerAuth.JWTMiddleware())
+		r.Patch("/user", handler(server.PatchSettingsV1User))
+		//	r.Delete("/user", handler(server.DeleteSettingsV1User))
 	})
 
 	r.Route("/bonuses/v1", func(r chi.Router) {

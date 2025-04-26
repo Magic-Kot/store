@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS users
     email         varchar        default('')     unique,
     age           integer        default(0),
     avatar        varchar        default(''),
-    created_at    timestamp      not null
+    created_at    timestamp      not null,
+    updated_at    timestamp,
+    deleted_at    timestamp
 );
 
 CREATE TABLE IF NOT EXISTS cart
