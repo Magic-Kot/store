@@ -34,6 +34,10 @@ type Config struct {
 		MaxIdleConnections int    `env:"REDIS_MAX_IDLE_CONNECTIONS" envDefault:"10"`
 	}
 
+	Nats struct {
+		URL string `env:"NATS_URL,notEmpty"`
+	}
+
 	JWT struct {
 		PrivateKey string `env:"JWT_PRIVATE_KEY,notEmpty" json:"-"`
 		PublicKey  string `env:"JWT_PUBLIC_KEY,notEmpty"`

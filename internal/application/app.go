@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib" // postgres driver
 	"github.com/jmoiron/sqlx"
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
@@ -28,6 +29,7 @@ import (
 	"github.com/Magic-Kot/store/pkg/logging"
 	"github.com/Magic-Kot/store/pkg/masker"
 	"github.com/Magic-Kot/store/pkg/middlewarex"
+	n "github.com/Magic-Kot/store/pkg/nats"
 )
 
 type App struct {
@@ -44,6 +46,8 @@ type App struct {
 
 	redisClient   *redis.Client
 	refreshTokens persistence.RefreshTokens
+
+	natsClient *nats.Conn
 
 	clock clock.Clock
 
@@ -108,6 +112,13 @@ func (app *App) Run() error {
 	)
 
 	app.refreshTokens = persistence.NewRefreshTokens(app.redisClient)
+
+	natsClient, err := n.NewClient(ctx, &n.Client{Url: app.cfg.Nats.URL})
+	if err != nil {
+		return fmt.Errorf("n.NewClient: %w", err)
+	}
+
+	app.natsClient = natsClient
 
 	// auth
 	app.authRepository = persistence.NewAuthPostgresRepository(app.postgresClient)
