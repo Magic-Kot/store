@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: cr.yandex/<your-registry>/<your-image>
+  KUBE_DEPLOYMENT: store-k8s-dev
+  KUBE_NAMESPACE: develop
+
+jobs:
+  build-and-deploy:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.3'
+
+      - name: Build Go binary
+        run: |
+          go build -o app ./...
+
+      - name: Log in to Yandex Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: cr.yandex
+          username: oauth
+          password: ${{ secrets.YANDEX_OAUTH_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE_NAME:${{ github.sha }}
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/$KUBE_DEPLOYMENT $KUBE_DEPLOYMENT=$IMAGE_NAME:${{ github.sha }} -n $KUBE_NAMESPACE
+          kubectl rollout status deployment/$KUBE_DEPLOYMENT -n $KUBE_NAMESPACE
