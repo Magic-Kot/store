@@ -21,5 +21,15 @@ services:
     networks:
       - ps
 
+  nats:
+    image: nats:latest
+    container_name: nats-server
+    ports:
+      - "4222:4222"   # порт для клиентов
+      - "8222:8222"   # HTTP порт для мониторинга
+      - "6222:6222"   # порт для маршрутизации в кластере (если нужен)
+    networks:
+      - ps
+
 networks:
   ps:
