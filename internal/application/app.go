@@ -115,7 +115,7 @@ func (app *App) Run() error {
 
 	natsClient, err := n.NewClient(ctx, &n.Client{Url: app.cfg.Nats.URL})
 	if err != nil {
-		return fmt.Errorf("n.NewClient: %w", err)
+		return fmt.Errorf("NewClient: %w", err)
 	}
 
 	app.natsClient = natsClient
@@ -163,6 +163,10 @@ func (app *App) runHTTPServer(ctx context.Context, g *errgroup.Group) {
 			if err := app.httpServer.Shutdown(ctx); err != nil {
 				zerolog.Ctx(ctx).Error().Err(err).Msg("httpServer.Shutdown")
 			}
+
+			if err := app.natsClient.Drain(); err != nil {
+				zerolog.Ctx(ctx).Error().Err(err).Msg("drain failed")
+			}
 		}()
 
 		zerolog.Ctx(ctx).Info().Str("address", app.cfg.ServerHTTP.ListenAddress).Msg("http server started")
@@ -189,7 +193,7 @@ func (app *App) newHTTPServer(ctx context.Context) *http.Server {
 		middlewarex.Recovery,
 	)
 
-	restServer := rest.NewServer(app.authService, app.userService)
+	restServer := rest.NewServer(app.authService, app.userService, app.natsClient)
 
 	authMiddleware := rest.NewBearerAuth(middlewarex.NewHeaderAuthorizationBearerTokenFinder(), component.NewAccessTokenParser(app.cfg.JWT.PublicKey))
 	rest.RegisterRoutes(router, restServer, authMiddleware)

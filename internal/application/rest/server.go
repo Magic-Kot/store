@@ -3,6 +3,8 @@ package rest
 import (
 	"context"
 
+	"github.com/nats-io/nats.go"
+
 	"github.com/Magic-Kot/store/internal/domain/entity"
 	"github.com/Magic-Kot/store/internal/domain/value"
 )
@@ -21,16 +23,19 @@ type userService interface {
 }
 
 type Server struct {
-	auth authService
-	user userService
+	auth       authService
+	user       userService
+	natsClient *nats.Conn
 }
 
 func NewServer(
 	auth authService,
 	user userService,
+	natsClient *nats.Conn,
 ) Server {
 	return Server{
-		auth: auth,
-		user: user,
+		auth:       auth,
+		user:       user,
+		natsClient: natsClient,
 	}
 }

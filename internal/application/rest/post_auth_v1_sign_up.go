@@ -34,6 +34,10 @@ func (s Server) PostAuthV1SignUp(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("auth.Registration: %w", err)
 	}
 
+	if err := s.natsClient.Publish("users.created", []byte("Добро пожаловать в Store!")); err != nil {
+		fmt.Printf("\nnatsClient.Publish: %v\n\n", err)
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	return nil
