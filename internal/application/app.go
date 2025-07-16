@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	grpcapp "github.com/Magic-Kot/store/internal/application/grpc"
 	"net"
 	"net/http"
 	"os/signal"
@@ -43,6 +44,8 @@ type App struct {
 	authRepository    *persistence.AuthPostgresRepository
 	authService       service.Auth
 	postgresClient    *sqlx.DB
+
+	grpcServer *grpcapp.App
 
 	redisClient   *redis.Client
 	refreshTokens persistence.RefreshTokens
@@ -135,7 +138,10 @@ func (app *App) Run() error {
 	app.dbUser = persistence.NewDBUser(app.postgresClient)
 	app.userService = service.NewUser(app.dbUser)
 
+	app.grpcServer = grpcapp.NewApp(app.cfg.ServerGRPC.ListenAddress, logger)
+
 	app.runHTTPServer(ctx, g)
+	app.grpcServer.Run(g)
 
 	if err = g.Wait(); err != nil {
 		return fmt.Errorf("g.Wait: %w", err)

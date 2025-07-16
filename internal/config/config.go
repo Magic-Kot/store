@@ -17,6 +17,10 @@ type Config struct {
 		ShutdownTimeout time.Duration `env:"HTTP_SHUTDOWN_TIMEOUT" envDefault:"30s"`
 	}
 
+	ServerGRPC struct {
+		ListenAddress string `env:"GRPC_LISTEN_ADDRESS,notEmpty"`
+	}
+
 	Postgres struct {
 		DSN             string        `env:"PG_DSN,notEmpty" json:"-"`
 		MaxIdleConns    int           `env:"PG_MAX_IDLE_CONNS" envDefault:"15"`
